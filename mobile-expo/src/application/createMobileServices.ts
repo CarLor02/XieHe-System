@@ -6,6 +6,7 @@ import type { MobileServices } from './services';
 import { uploadImage } from '../features/imaging/usecases/uploadImage';
 import type { ExpoApiInfrastructure } from '../infrastructure/http/createExpoApiInfrastructure';
 import { createImageEditorGateway } from '../infrastructure/http/createImageEditorGateway';
+import { requireSupportedImage } from '../features/imaging/domain/supportedImage';
 
 export function createMobileServices(
   api: ExpoApiInfrastructure
@@ -21,6 +22,7 @@ export function createMobileServices(
     reports: sdk.reports,
     async preview(id) {
       const image = await sdk.imaging.get(id);
+      requireSupportedImage(image.file_type);
       if (image.file_type === 'PNG' || image.file_type === 'JPEG') {
         const result = await sdk.imaging.getDownloadUrl(id);
         return { uri: result.url, isThumbnail: false };

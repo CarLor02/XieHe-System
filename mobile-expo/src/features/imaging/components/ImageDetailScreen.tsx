@@ -84,8 +84,7 @@ export function ImageDetailScreen() {
         )}
         {preview.data?.isThumbnail && (
           <Notice>
-            当前显示服务端预览图。原始 DICOM / TIFF
-            的窗宽窗位调整与完整阅片请使用 Web 端。
+            当前显示服务端生成的 TIFF 预览图，标注使用原图坐标。
           </Notice>
         )}
         {image && (

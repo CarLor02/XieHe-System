@@ -482,7 +482,7 @@ describe('mobile image editing workflow', () => {
     const legacy = document();
     delete legacy.imageWidth;
     delete legacy.imageHeight;
-    const second = await setup(image(legacy, { file_type: 'DICOM' }), true);
+    const second = await setup(image(legacy, { file_type: 'TIFF' }), true);
     expect(second.session.editable).toBe(false);
     expect(await second.session.save()).toBe(false);
     expect(second.gateway.save).not.toHaveBeenCalled();

@@ -1,6 +1,7 @@
 import type { XieheApiSdk } from '@xiehe/api-sdk';
 import type { RequestSaveAnnotation } from '@xiehe/api-contracts/generated';
 import type { ImageEditorGateway } from '../../features/image-editor';
+import { requireSupportedImage } from '../../features/imaging/domain/supportedImage';
 
 export function createImageEditorGateway(
   imaging: Pick<
@@ -11,6 +12,7 @@ export function createImageEditorGateway(
   return {
     getImage: imaging.get,
     async getPreview(image) {
+      requireSupportedImage(image.file_type);
       if (image.file_type === 'PNG' || image.file_type === 'JPEG') {
         return {
           uri: (await imaging.getDownloadUrl(image.id)).url,

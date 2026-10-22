@@ -18,7 +18,7 @@ export function readMobileFile(asset: {
     size: asset.size ?? nativeFile.size,
     mimeType: mimeTypeForFilename(asset.name),
     async readChunk(start, end) {
-      // Read only the current part, so a large DICOM does not occupy memory once per part.
+      // Read only the current part, so a large image does not occupy memory once per part.
       const handle = nativeFile.open(FileMode.ReadOnly);
       try {
         handle.offset = start;

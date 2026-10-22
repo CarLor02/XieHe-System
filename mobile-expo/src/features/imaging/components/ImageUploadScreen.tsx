@@ -73,7 +73,7 @@ export function ImageUploadScreen() {
             <Text style={layout.muted}>
               {upload.file
                 ? formatFileSize(upload.file.size)
-                : 'PNG / JPEG / TIFF / DICOM · 最大 100 MB'}
+                : 'PNG / JPEG / TIFF · 最大 100 MB'}
             </Text>
           </View>
           <Button

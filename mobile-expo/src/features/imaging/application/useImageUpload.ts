@@ -27,7 +27,7 @@ export function useImageUpload() {
     try {
       if (source === 'file') {
         const result = await DocumentPicker.getDocumentAsync({
-          type: '*/*',
+          type: ['image/png', 'image/jpeg', 'image/tiff'],
           copyToCacheDirectory: true,
           multiple: false,
         });
