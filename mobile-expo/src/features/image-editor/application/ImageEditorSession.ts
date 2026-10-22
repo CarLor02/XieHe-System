@@ -108,12 +108,15 @@ export class ImageEditorSession {
     dragging: false,
   };
   private listeners = new Set<() => void>();
+  private screenListeners = new Set<() => void>();
+  private screenState = this.state;
   private generation = 0;
   private sequence = 0;
   private savedReport = '';
   private savedSnapshot: AnnotationEditorSnapshot | null = null;
   private drawingBase: AnnotationEditorSnapshot | null = null;
   private dragBase: AnnotationEditorSnapshot | null = null;
+  private dragPoint: Point | null = null;
 
   constructor(
     readonly imageId: number,
@@ -126,6 +129,14 @@ export class ImageEditorSession {
     };
   };
   getState = () => this.state;
+  // 高频预览由画布/数据面板订阅；页面导航和操作栏只观察事务边界。
+  subscribeScreen = (listener: () => void) => {
+    this.screenListeners.add(listener);
+    return () => {
+      this.screenListeners.delete(listener);
+    };
+  };
+  getScreenState = () => this.screenState;
   get snapshot() {
     return this.state.history?.present ?? null;
   }
@@ -165,8 +176,12 @@ export class ImageEditorSession {
         ? '拖动已有关键点 · 相关测量自动更新'
         : '点选测量 · 拖动控制点修改 · 双指缩放和平移';
   }
-  private update(patch: Partial<EditorState>) {
+  private update(patch: Partial<EditorState>, previewOnly = false) {
     this.state = { ...this.state, ...patch };
+    if (!previewOnly) {
+      this.screenState = this.state;
+      this.screenListeners.forEach(listener => listener());
+    }
     this.listeners.forEach(listener => listener());
   }
   private commit(snapshot: AnnotationEditorSnapshot) {
@@ -365,7 +380,8 @@ export class ImageEditorSession {
     if (result.completion !== null) this.finishDrawing(result.completion);
   }
   previewShape(points: Point[]) {
-    if (this.editable) this.update({ drawingPreview: points });
+    if (this.editable && (points.length || this.state.drawingPreview.length))
+      this.update({ drawingPreview: points }, true);
   }
   finishDrawing(points: Point[] = this.state.drawing?.points ?? []) {
     const drawing = this.state.drawing;
@@ -423,18 +439,22 @@ export class ImageEditorSession {
 
   beginDrag(selection: EditorSelection) {
     if (!this.editable || this.state.drawing || !this.snapshot) return;
-    this.dragBase = historyPolicy.clone(this.snapshot);
+    // 编辑函数不可变更新，保留基线引用可让未受影响的标注跨帧复用。
+    this.dragBase = this.snapshot;
+    this.dragPoint = null;
     this.update({ selection, dragging: true });
   }
   moveDrag(point: Point) {
     if (!this.dragBase || !this.state.selection || !this.editable) return;
+    if (this.dragPoint?.x === point.x && this.dragPoint.y === point.y) return;
+    this.dragPoint = point;
     const present = dragAnnotation(
       this.dragBase,
       this.state.selection,
       point,
       this.context
     );
-    this.update({ history: { ...this.state.history!, present } });
+    this.update({ history: { ...this.state.history!, present } }, true);
   }
   endDrag() {
     const base = this.dragBase;
@@ -449,6 +469,7 @@ export class ImageEditorSession {
   }
   cancelDrag() {
     const base = this.dragBase;
+    if (!base) return;
     this.dragBase = null;
     this.update({
       dragging: false,

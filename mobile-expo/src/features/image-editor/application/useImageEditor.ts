@@ -8,9 +8,9 @@ export function useImageEditor(imageId: number, gateway: ImageEditorGateway) {
     [imageId, gateway]
   );
   const state = useSyncExternalStore(
-    session.subscribe,
-    session.getState,
-    session.getState
+    session.subscribeScreen,
+    session.getScreenState,
+    session.getScreenState
   );
   useEffect(() => {
     void session.load();

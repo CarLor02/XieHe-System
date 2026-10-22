@@ -168,8 +168,12 @@ export function dragAnnotation(
   let keypoints = snapshot.keypoints;
   let vertebraeLayer = snapshot.vertebraeLayer;
   let cfhAnnotation = snapshot.cfhAnnotation;
+  const previousById = new Map(
+    snapshot.measurements.map(item => [item.id, item])
+  );
   for (const item of measurements) {
-    const previous = snapshot.measurements.find(m => m.id === item.id);
+    const previous = previousById.get(item.id);
+    if (item === previous) continue;
     item.points.forEach((p, index) => {
       if (
         previous?.points[index]?.x === p.x &&

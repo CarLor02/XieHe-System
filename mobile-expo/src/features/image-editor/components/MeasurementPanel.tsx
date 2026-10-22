@@ -3,26 +3,70 @@ import {
   getAnnotationDisplayName,
   getColorForType,
 } from '@xiehe/imaging-catalog/annotations';
+import { memo, useSyncExternalStore } from 'react';
 import type { MeasurementData } from '@xiehe/imaging-core/contracts';
-import type { EditorSelection } from '../application/dragAnnotation';
+import type { ImageEditorSession } from '../application/ImageEditorSession';
 import { EditorButton } from './EditorButton';
 import { editorColors as c, editorStyles as s } from './editorTheme';
 
+const MeasurementRow = memo(function MeasurementRow({
+  measurement,
+  selected,
+  disabled,
+  onSelect,
+}: {
+  measurement: MeasurementData;
+  selected: boolean;
+  disabled: boolean;
+  onSelect: (id: string) => void;
+}) {
+  const color = getColorForType(measurement.type);
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`选择测量 ${getAnnotationDisplayName(measurement.type)}`}
+      accessibilityState={{ selected, disabled }}
+      disabled={disabled}
+      onPress={() => onSelect(measurement.id)}
+      style={[styles.item, selected && styles.selected]}
+    >
+      <View style={[styles.dot, { backgroundColor: color }]} />
+      <View style={{ flex: 1 }}>
+        <Text numberOfLines={1} style={styles.name}>
+          {getAnnotationDisplayName(measurement.type)}
+        </Text>
+        {!!measurement.description && (
+          <Text numberOfLines={1} style={styles.description}>
+            {measurement.description}
+          </Text>
+        )}
+      </View>
+      <Text style={[styles.value, { color }]}>{measurement.value || '—'}</Text>
+    </Pressable>
+  );
+});
+
 export function MeasurementPanel({
-  measurements,
-  selection,
+  session,
   disabled,
   onSelect,
   onDelete,
   onClose,
 }: {
-  measurements: MeasurementData[];
-  selection: EditorSelection | null;
+  session: ImageEditorSession;
   disabled: boolean;
   onSelect: (id: string) => void;
   onDelete: () => void;
   onClose: () => void;
 }) {
+  const state = useSyncExternalStore(
+    session.subscribe,
+    session.getState,
+    session.getState
+  );
+  const measurements = state.history?.present.measurements ?? [];
+  const selection = state.selection;
+  const interactionDisabled = disabled || state.dragging;
   const selectedId =
     selection && 'measurementId' in selection ? selection.measurementId : null;
   return (
@@ -40,7 +84,7 @@ export function MeasurementPanel({
               icon="trash-outline"
               danger
               onPress={onDelete}
-              disabled={disabled}
+              disabled={interactionDisabled}
             />
           )}
           <EditorButton
@@ -57,36 +101,15 @@ export function MeasurementPanel({
             暂无测量 · 从工具面板选择工具开始标注
           </Text>
         )}
-        {measurements.map(measurement => {
-          const selected = measurement.id === selectedId;
-          const color = getColorForType(measurement.type);
-          return (
-            <Pressable
-              key={measurement.id}
-              accessibilityRole="button"
-              accessibilityLabel={`选择测量 ${getAnnotationDisplayName(measurement.type)}`}
-              accessibilityState={{ selected, disabled }}
-              disabled={disabled}
-              onPress={() => onSelect(measurement.id)}
-              style={[styles.item, selected && styles.selected]}
-            >
-              <View style={[styles.dot, { backgroundColor: color }]} />
-              <View style={{ flex: 1 }}>
-                <Text numberOfLines={1} style={styles.name}>
-                  {getAnnotationDisplayName(measurement.type)}
-                </Text>
-                {!!measurement.description && (
-                  <Text numberOfLines={1} style={styles.description}>
-                    {measurement.description}
-                  </Text>
-                )}
-              </View>
-              <Text style={[styles.value, { color }]}>
-                {measurement.value || '—'}
-              </Text>
-            </Pressable>
-          );
-        })}
+        {measurements.map(measurement => (
+          <MeasurementRow
+            key={measurement.id}
+            measurement={measurement}
+            selected={measurement.id === selectedId}
+            disabled={interactionDisabled}
+            onSelect={onSelect}
+          />
+        ))}
       </ScrollView>
     </View>
   );

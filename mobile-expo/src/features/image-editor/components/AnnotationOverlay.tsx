@@ -10,6 +10,7 @@ import Svg, {
   Text as SvgText,
 } from 'react-native-svg';
 import { StyleSheet } from 'react-native';
+import { useAnimatedProps, type SharedValue } from 'react-native-reanimated';
 import {
   getAnnotationDisplayName,
   getAnnotationTypeId,
@@ -26,17 +27,28 @@ import type { AnnotationEditorSnapshot } from '@xiehe/imaging-core/editor';
 import { getBilateralPelvicGeometryForMeasurement } from '@xiehe/imaging-core/measurements/lateral';
 import type { EditorSelection } from '../application/dragAnnotation';
 import { measurementGeometry } from './measurementGeometry';
-
-function MeasurementDrawing({
+import {
+  AnimatedSvgGroup,
+  ControlPoint,
+  svgMatrixProps,
+} from './AnimatedControlPoint';
+import {
+  viewportMatrix,
+  type DragPreview,
+  type Viewport,
+} from './interaction/canvasGestureModel';
+const MeasurementDrawing = memo(function MeasurementDrawing({
   measurement,
   context,
   selected,
   showLabels,
+  dragPreview,
 }: {
   measurement: MeasurementData;
   context: TransformContext;
   selected: boolean;
   showLabels: boolean;
+  dragPreview: SharedValue<DragPreview>;
 }) {
   const project = (point: Point) => imageToScreen(point, context);
   const p = measurement.points.map(project);
@@ -152,7 +164,14 @@ function MeasurementDrawing({
           );
         })()}
       {p.slice(0, interactive).map((point, index) => (
-        <G key={`h${index}`}>
+        <ControlPoint
+          key={`h${index}`}
+          enabled={selected}
+          pointKey={`point:${measurement.id}:${index}`}
+          point={point}
+          context={context}
+          preview={dragPreview}
+        >
           {selected && (
             <Circle cx={point.x} cy={point.y} r={12} fill="#FBBF241A" />
           )}
@@ -169,21 +188,29 @@ function MeasurementDrawing({
               {index + 1}
             </SvgText>
           )}
-        </G>
+        </ControlPoint>
       ))}
       {selected &&
         effectiveCfh &&
         (() => {
           const point = project(effectiveCfh);
           return (
-            <Circle
-              cx={point.x}
-              cy={point.y}
-              r={6}
-              fill="#111827"
-              stroke="#FBBF24"
-              strokeWidth={2}
-            />
+            <ControlPoint
+              enabled
+              pointKey={`cfh:${measurement.id}`}
+              point={point}
+              context={context}
+              preview={dragPreview}
+            >
+              <Circle
+                cx={point.x}
+                cy={point.y}
+                r={6}
+                fill="#111827"
+                stroke="#FBBF24"
+                strokeWidth={2}
+              />
+            </ControlPoint>
           );
         })()}
       {showLabels && (
@@ -211,8 +238,7 @@ function MeasurementDrawing({
       )}
     </G>
   );
-}
-
+});
 export const AnnotationOverlay = memo(function AnnotationOverlay({
   snapshot,
   context,
@@ -221,6 +247,8 @@ export const AnnotationOverlay = memo(function AnnotationOverlay({
   showKeypoints,
   draftPoints,
   preview,
+  viewport,
+  dragPreview,
 }: {
   snapshot: AnnotationEditorSnapshot;
   context: TransformContext;
@@ -229,8 +257,21 @@ export const AnnotationOverlay = memo(function AnnotationOverlay({
   showKeypoints: boolean;
   draftPoints: Point[];
   preview: MeasurementData | null;
+  viewport: SharedValue<Viewport>;
+  dragPreview: SharedValue<DragPreview>;
 }) {
   const project = (point: Point) => imageToScreen(point, context);
+  const renderedViewport = {
+    imageScale: context.imageScale,
+    imagePosition: context.imagePosition,
+  };
+  const center = {
+    x: (context.containerSize?.width ?? 0) / 2,
+    y: (context.containerSize?.height ?? 0) / 2,
+  };
+  const transform = useAnimatedProps(() =>
+    svgMatrixProps(viewportMatrix(viewport.get(), renderedViewport, center))
+  );
   return (
     <Svg
       style={StyleSheet.absoluteFill}
@@ -238,111 +279,133 @@ export const AnnotationOverlay = memo(function AnnotationOverlay({
       width={context.containerSize?.width ?? 0}
       height={context.containerSize?.height ?? 0}
     >
-      {snapshot.measurements.map(measurement => (
-        <MeasurementDrawing
-          key={measurement.id}
-          measurement={measurement}
-          context={context}
-          selected={
-            !!selection &&
-            'measurementId' in selection &&
-            selection.measurementId === measurement.id
-          }
-          showLabels={showLabels}
-        />
-      ))}
-      {showKeypoints &&
-        snapshot.keypoints.map(keypoint => {
-          const point = project(keypoint.point);
-          const selected =
-            selection?.kind === 'keypoint' &&
-            selection.keypointId === keypoint.id;
+      <AnimatedSvgGroup animatedProps={transform}>
+        {snapshot.measurements.map(measurement => (
+          <MeasurementDrawing
+            key={measurement.id}
+            measurement={measurement}
+            context={context}
+            selected={
+              !!selection &&
+              'measurementId' in selection &&
+              selection.measurementId === measurement.id
+            }
+            showLabels={showLabels}
+            dragPreview={dragPreview}
+          />
+        ))}
+        {showKeypoints &&
+          snapshot.keypoints.map(keypoint => {
+            const point = project(keypoint.point);
+            const selected =
+              selection?.kind === 'keypoint' &&
+              selection.keypointId === keypoint.id;
+            return (
+              <ControlPoint
+                key={keypoint.id}
+                enabled={selected}
+                pointKey={`keypoint:${keypoint.id}`}
+                point={point}
+                context={context}
+                preview={dragPreview}
+              >
+                <Circle
+                  cx={point.x}
+                  cy={point.y}
+                  r={selected ? 7 : 4}
+                  fill="#111827"
+                  stroke={selected ? '#FBBF24' : '#34D399'}
+                  strokeWidth={1.5}
+                />
+                {(showLabels || selected) && (
+                  <SvgText
+                    x={point.x + 8}
+                    y={point.y - 7}
+                    fill="#6EE7B7"
+                    fontSize={10}
+                  >
+                    {keypoint.id}
+                  </SvgText>
+                )}
+              </ControlPoint>
+            );
+          })}
+        {snapshot.standardDistancePoints.length === 2 &&
+          (() => {
+            const [a, b] = snapshot.standardDistancePoints.map(project);
+            return (
+              <G>
+                <Line
+                  x1={a.x}
+                  y1={a.y}
+                  x2={b.x}
+                  y2={b.y}
+                  stroke="#FBBF24"
+                  strokeWidth={2}
+                  strokeDasharray="4 3"
+                />
+                {[a, b].map((p, index) => (
+                  <ControlPoint
+                    key={index}
+                    enabled={
+                      selection?.kind === 'calibration' &&
+                      selection.pointIndex === index
+                    }
+                    pointKey={`calibration:${index}`}
+                    point={p}
+                    context={context}
+                    preview={dragPreview}
+                  >
+                    <Circle
+                      cx={p.x}
+                      cy={p.y}
+                      r={5}
+                      stroke="#FBBF24"
+                      fill="#111827"
+                    />
+                  </ControlPoint>
+                ))}
+                {showLabels && (
+                  <SvgText
+                    x={(a.x + b.x) / 2 + 7}
+                    y={(a.y + b.y) / 2 - 8}
+                    fill="#FBBF24"
+                    fontSize={11}
+                  >
+                    {snapshot.standardDistance} mm
+                  </SvgText>
+                )}
+              </G>
+            );
+          })()}
+        {preview && (
+          <MeasurementDrawing
+            measurement={preview}
+            context={context}
+            selected
+            showLabels={false}
+            dragPreview={dragPreview}
+          />
+        )}
+        {draftPoints.map((point, index) => {
+          const p = project(point);
           return (
-            <G key={keypoint.id}>
+            <G key={`draft${index}`}>
               <Circle
-                cx={point.x}
-                cy={point.y}
-                r={selected ? 7 : 4}
-                fill="#111827"
-                stroke={selected ? '#FBBF24' : '#34D399'}
-                strokeWidth={1.5}
+                cx={p.x}
+                cy={p.y}
+                r={6}
+                fill="#2563EB"
+                stroke="#BFDBFE"
+                strokeWidth={2}
               />
-              {(showLabels || selected) && (
-                <SvgText
-                  x={point.x + 8}
-                  y={point.y - 7}
-                  fill="#6EE7B7"
-                  fontSize={10}
-                >
-                  {keypoint.id}
-                </SvgText>
-              )}
+              <SvgText x={p.x + 9} y={p.y - 8} fontSize={11} fill="#BFDBFE">
+                {index + 1}
+              </SvgText>
             </G>
           );
         })}
-      {snapshot.standardDistancePoints.length === 2 &&
-        (() => {
-          const [a, b] = snapshot.standardDistancePoints.map(project);
-          return (
-            <G>
-              <Line
-                x1={a.x}
-                y1={a.y}
-                x2={b.x}
-                y2={b.y}
-                stroke="#FBBF24"
-                strokeWidth={2}
-                strokeDasharray="4 3"
-              />
-              {[a, b].map((p, index) => (
-                <Circle
-                  key={index}
-                  cx={p.x}
-                  cy={p.y}
-                  r={5}
-                  stroke="#FBBF24"
-                  fill="#111827"
-                />
-              ))}
-              {showLabels && (
-                <SvgText
-                  x={(a.x + b.x) / 2 + 7}
-                  y={(a.y + b.y) / 2 - 8}
-                  fill="#FBBF24"
-                  fontSize={11}
-                >
-                  {snapshot.standardDistance} mm
-                </SvgText>
-              )}
-            </G>
-          );
-        })()}
-      {preview && (
-        <MeasurementDrawing
-          measurement={preview}
-          context={context}
-          selected
-          showLabels={false}
-        />
-      )}
-      {draftPoints.map((point, index) => {
-        const p = project(point);
-        return (
-          <G key={`draft${index}`}>
-            <Circle
-              cx={p.x}
-              cy={p.y}
-              r={6}
-              fill="#2563EB"
-              stroke="#BFDBFE"
-              strokeWidth={2}
-            />
-            <SvgText x={p.x + 9} y={p.y - 8} fontSize={11} fill="#BFDBFE">
-              {index + 1}
-            </SvgText>
-          </G>
-        );
-      })}
+      </AnimatedSvgGroup>
     </Svg>
   );
 });

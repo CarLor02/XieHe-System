@@ -18,32 +18,41 @@ export function recalculateSnapshot(
   context: CalculationContext,
   previous?: AnnotationEditorSnapshot
 ): AnnotationEditorSnapshot {
+  const previousById = new Map(
+    previous?.measurements.map(item => [item.id, item])
+  );
   return {
     ...snapshot,
     measurements: snapshot.measurements.map(measurement => {
-      const before = previous?.measurements.find(
-        item => item.id === measurement.id
-      );
-      const outcome = calculateMeasurementResults(measurement, context);
+      const before = previousById.get(measurement.id);
       // 点位编辑只重算改变的几何；标定只影响长度，保留无关项的历史/AI 数值。
       const changed = before
-        ? JSON.stringify(before.points) !==
-            JSON.stringify(measurement.points) ||
+        ? before.points.length !== measurement.points.length ||
+          before.points.some(
+            (point, index) =>
+              point.x !== measurement.points[index].x ||
+              point.y !== measurement.points[index].y
+          ) ||
           JSON.stringify(before.pelvicMetadata) !==
             JSON.stringify(measurement.pelvicMetadata)
         : previous !== undefined;
-      const calibratedLength =
-        !previous &&
+      if (previous)
+        return changed
+          ? {
+              ...measurement,
+              value: measurementCalculator.calculateMeasurement(
+                measurement,
+                context
+              ),
+            }
+          : measurement;
+      const outcome = calculateMeasurementResults(measurement, context);
+      const result =
+        outcome.status === 'calculated' ? outcome.results[0] : null;
+      return result &&
         outcome.status === 'calculated' &&
-        outcome.results.some(result => result.unit === 'mm');
-      return changed || calibratedLength
-        ? {
-            ...measurement,
-            value: measurementCalculator.calculateMeasurement(
-              measurement,
-              context
-            ),
-          }
+        outcome.results.some(item => item.unit === 'mm')
+        ? { ...measurement, value: `${result.value}${result.unit}` }
         : measurement;
     }),
   };
@@ -56,6 +65,21 @@ export function synchronizeKeypoints(
   context: CalculationContext
 ): AnnotationEditorSnapshot {
   const lateral = isLateralExamType(context.examType ?? '');
+  const previousPoints = new Map(
+    snapshot.keypoints.map(keypoint => [keypoint.id, keypoint.point])
+  );
+  const changedKeypointIds = new Set<string>();
+  for (const keypoint of keypoints) {
+    const before = previousPoints.get(keypoint.id);
+    if (
+      !before ||
+      before.x !== keypoint.point.x ||
+      before.y !== keypoint.point.y
+    )
+      changedKeypointIds.add(keypoint.id);
+    previousPoints.delete(keypoint.id);
+  }
+  previousPoints.forEach((_, id) => changedKeypointIds.add(id));
   const cfhAnnotation = lateral
     ? keypointsToCfhAnnotation(keypoints)
     : snapshot.cfhAnnotation;
@@ -68,6 +92,7 @@ export function synchronizeKeypoints(
     calculationContext: context,
     aiMeasurementIds: new Set(snapshot.aiMeasurementIds),
     calculator: measurementCalculator,
+    changedKeypointIds,
   });
   return {
     ...snapshot,

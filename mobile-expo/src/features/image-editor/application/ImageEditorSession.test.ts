@@ -17,6 +17,8 @@ import {
 } from '@xiehe/imaging-core/contracts';
 import { ImageEditorSession } from './ImageEditorSession';
 import type { ImageEditorGateway } from './ports';
+import { imageToScreen } from '@xiehe/imaging-core/canvas';
+import { CanvasInteraction } from '../components/interaction/CanvasInteraction';
 
 function image(
   annotation: AnnotationDocument | null,
@@ -104,6 +106,193 @@ function draw(session: ImageEditorSession, type: string, supplied: Point[]) {
 }
 
 describe('mobile image editing workflow', () => {
+  it('isolates preview subscribers, keeps the immutable baseline and flushes the final gesture coordinate', async () => {
+    const { session, gateway } = await setup(
+      image(
+        document([
+          {
+            id: 'line',
+            type: 'aux-length',
+            value: '100mm',
+            points: points.slice(0, 2),
+          },
+          {
+            id: 'other',
+            type: 'aux-length',
+            value: '旧值',
+            points: points.slice(4, 6),
+          },
+        ])
+      )
+    );
+    const before = session.snapshot!;
+    const freeze = (value: object) => {
+      Object.values(value).forEach(child => {
+        if (child && typeof child === 'object') freeze(child);
+      });
+      Object.freeze(value);
+    };
+    freeze(before);
+    const interaction = new CanvasInteraction(session);
+    const context = {
+      imageScale: 2,
+      imagePosition: { x: 40, y: 80 },
+      imageNaturalSize: { width: 1000, height: 2000 },
+      containerSize: { width: 400, height: 800 },
+    };
+    const start = imageToScreen(points[0], context);
+    const plan = interaction.begin(
+      1,
+      { ...start, translationX: 0, translationY: 0 },
+      context
+    );
+    expect(plan.kind).toBe('annotation');
+    const screenState = session.getScreenState();
+    const screenListener = vi.fn(),
+      previewListener = vi.fn();
+    session.subscribeScreen(screenListener);
+    session.subscribe(previewListener);
+    interaction.move(1, {
+      ...start,
+      x: start.x + 8,
+      translationX: 8,
+      translationY: 0,
+    });
+    expect(session.getScreenState()).toBe(screenState);
+    expect(screenListener).not.toHaveBeenCalled();
+    expect(previewListener).toHaveBeenCalledOnce();
+    interaction.move(1, {
+      ...start,
+      x: start.x + 8,
+      translationX: 8,
+      translationY: 0,
+    });
+    expect(previewListener).toHaveBeenCalledOnce();
+    expect(session.snapshot?.measurements[1]).toBe(before.measurements[1]);
+    expect(before.measurements[0].points[0]).toEqual(points[0]);
+    interaction.end(1, {
+      ...start,
+      x: start.x + 16,
+      translationX: 16,
+      translationY: 0,
+    });
+    expect(session.snapshot?.measurements[0].points[0]).toEqual({
+      x: 120,
+      y: 100,
+    });
+    expect(session.getState().history?.past).toHaveLength(1);
+    expect(session.getScreenState().dragging).toBe(false);
+    const ended = session.snapshot;
+    interaction.move(1, {
+      ...start,
+      x: 999,
+      translationX: 999,
+      translationY: 0,
+    });
+    expect(session.snapshot).toBe(ended);
+    expect(gateway.save).not.toHaveBeenCalled();
+    session.undo();
+    expect(session.snapshot).toEqual(before);
+    session.redo();
+    expect(session.snapshot).toEqual(ended);
+    await session.save();
+    expect(
+      gateway.save.mock.calls[0][0].annotation.measurements?.[0].points[0]
+    ).toEqual({ x: 120, y: 100 });
+  });
+
+  it('cancels an interrupted gesture and ignores its late frames after the next gesture or disposal', async () => {
+    const { session } = await setup(
+      image(
+        document([
+          {
+            id: 'line',
+            type: 'aux-length',
+            value: '',
+            points: points.slice(0, 2),
+          },
+        ])
+      )
+    );
+    const before = structuredClone(session.snapshot);
+    const interaction = new CanvasInteraction(session);
+    const context = {
+      imageScale: 1,
+      imagePosition: { x: 0, y: 0 },
+      imageNaturalSize: { width: 1000, height: 2000 },
+      containerSize: { width: 1000, height: 2000 },
+    };
+    const sample = { ...points[0], translationX: 0, translationY: 0 };
+    interaction.begin(1, sample, context);
+    interaction.move(1, { ...sample, x: 180 });
+    interaction.cancel(1);
+    interaction.end(1, { ...sample, x: 190 });
+    expect(session.snapshot).toEqual(before);
+    expect(session.getState().history?.past).toHaveLength(0);
+    interaction.begin(2, sample, context);
+    interaction.move(2, { ...sample, x: 160 });
+    const current = session.snapshot;
+    interaction.cancel(1);
+    interaction.move(1, { ...sample, x: 999 });
+    expect(session.snapshot).toBe(current);
+    interaction.dispose();
+    interaction.move(2, { ...sample, x: 999 });
+    interaction.end(2, { ...sample, x: 999 });
+    expect(session.snapshot).toEqual(before);
+  });
+
+  it('completes a short viewport pan even if release precedes the UI hit-test response', async () => {
+    const { session } = await setup();
+    const interaction = new CanvasInteraction(session);
+    const context = {
+      imageScale: 1.5,
+      imagePosition: { x: 15, y: -20 },
+      imageNaturalSize: { width: 1000, height: 2000 },
+      containerSize: { width: 400, height: 800 },
+    };
+    const sample = { x: 200, y: 100, translationX: 0, translationY: 0 };
+    expect(interaction.begin(1, sample, context).kind).toBe('viewport');
+    expect(
+      interaction.end(1, {
+        ...sample,
+        x: 222,
+        y: 112,
+        translationX: 22,
+        translationY: 12,
+      })
+    ).toEqual({ imageScale: 1.5, imagePosition: { x: 37, y: -8 } });
+    expect(session.getState().history?.past).toHaveLength(0);
+  });
+
+  it('flushes the final shape preview and cancels an interrupted shape without a history entry', async () => {
+    const { session } = await setup();
+    const interaction = new CanvasInteraction(session);
+    const context = {
+      imageScale: 1,
+      imagePosition: { x: 0, y: 0 },
+      imageNaturalSize: { width: 1000, height: 2000 },
+      containerSize: { width: 1000, height: 2000 },
+    };
+    session.chooseTool('rectangle');
+    const start = { x: 100, y: 200, translationX: 0, translationY: 0 };
+    expect(interaction.begin(1, start, context).kind).toBe('shape');
+    interaction.move(1, { ...start, x: 200, y: 300 });
+    interaction.cancel(1);
+    expect(session.getState().drawingPreview).toEqual([]);
+    expect(session.getState().history?.past).toHaveLength(0);
+    interaction.begin(2, start, context);
+    interaction.move(2, { ...start, x: 200, y: 300 });
+    interaction.end(2, { ...start, x: 400, y: 500 });
+    expect(session.snapshot?.measurements[0].points).toEqual([
+      { x: 100, y: 200 },
+      { x: 400, y: 500 },
+    ]);
+    expect(session.getState().history?.past).toHaveLength(1);
+    expect(session.getState().drawing).toBeNull();
+    session.undo();
+    expect(session.snapshot?.measurements).toEqual([]);
+  });
+
   it('propagates existing manual point bindings and preserves unrelated stored values', async () => {
     const first: MeasurementData = {
       id: 'a',

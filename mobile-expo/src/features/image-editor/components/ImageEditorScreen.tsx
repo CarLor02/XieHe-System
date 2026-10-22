@@ -215,7 +215,6 @@ export function ImageEditorScreen({
           <EditorCanvas
             key={`${imageId}-${state.preview?.uri}-${resetToken}`}
             session={session}
-            state={state}
             showLabels={showLabels}
             showKeypoints={showKeypoints}
             controls={
@@ -338,8 +337,7 @@ export function ImageEditorScreen({
           )}
           {!fullscreen && measurementsOpen && (
             <MeasurementPanel
-              measurements={session.snapshot?.measurements ?? []}
-              selection={state.selection}
+              session={session}
               disabled={state.saving || !session.editable}
               onSelect={id => {
                 session.cancelDrawing();
@@ -409,26 +407,30 @@ export function ImageEditorScreen({
               onClose={() => setBindingsOpen(false)}
             />
           )}
-          <EditorAnalysisSheet
-            session={session}
-            state={state}
-            open={analysisOpen}
-            onClose={() => {
-              if (!state.working && !state.saving) setAnalysisOpen(false);
-            }}
-            onAnalyze={() => {
-              setAnalysisOpen(false);
-              setConfirmation('ai');
-            }}
-          />
-          <EditorToolSheet
-            key={`${imageId}-${state.annotationVersion}-${toolsOpen}`}
-            session={session}
-            state={state}
-            open={toolsOpen}
-            onClose={() => setToolsOpen(false)}
-            onReload={reload}
-          />
+          {analysisOpen && (
+            <EditorAnalysisSheet
+              session={session}
+              state={state}
+              open={analysisOpen}
+              onClose={() => {
+                if (!state.working && !state.saving) setAnalysisOpen(false);
+              }}
+              onAnalyze={() => {
+                setAnalysisOpen(false);
+                setConfirmation('ai');
+              }}
+            />
+          )}
+          {toolsOpen && (
+            <EditorToolSheet
+              key={`${imageId}-${state.annotationVersion}-${toolsOpen}`}
+              session={session}
+              state={state}
+              open={toolsOpen}
+              onClose={() => setToolsOpen(false)}
+              onReload={reload}
+            />
+          )}
         </>
       )}
       {confirmation && (

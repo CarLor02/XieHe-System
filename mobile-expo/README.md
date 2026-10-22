@@ -101,6 +101,25 @@ npm run start:dev-client --workspace @xiehe/mobile-expo
 这些命令由 Expo 生成本地 `android/` / `ios/`（已忽略）。日常 Expo Go 调试不需要先构建
 APK，也不需要 EAS 云构建。新增原生依赖或修改原生配置后，需要重建 development client。
 
+### 本地 release APK
+
+性能对比使用内置 JS bundle 的 release 包，不依赖 Metro。已生成 `android/` 时，从仓库根目录执行：
+
+```bash
+cd mobile-expo/android
+ANDROID_HOME="$HOME/Android/Sdk" ./gradlew :app:assembleRelease
+cd ../..
+adb -d install -r mobile-expo/android/app/build/outputs/apk/release/app-release.apk
+```
+
+安装后从手机桌面打开「协和脊柱影像」。`install -r` 覆盖安装并保留数据；本地包沿用 Expo
+生成的调试签名，仅用于本机验证。首次生成原生目录并构建、安装也可以继续使用
+`npm run build:android --workspace @xiehe/mobile-expo -- --variant release --no-bundler`。
+
+若 Gradle 下载依赖需要本机 Clash HTTP 代理，可在用户级 `~/.gradle/gradle.properties`
+设置 `systemProp.http.proxyHost` / `systemProp.https.proxyHost` 为 `127.0.0.1`，对应的
+`proxyPort` 为本机端口；代理配置不要写入仓库。
+
 ## 目录与维护
 
 ```text
@@ -124,6 +143,28 @@ HTTP DTO 和 endpoint 继续归属于共享 contracts / SDK；患者查询展示
 后续采用共享核心包与单层业务模块的 DDD 组织，保持 `features/` 只有一层，按实际职责
 提取应用编排和平台端口。认证、上传已使用窄端口，患者和个人中心的查询状态已提取，
 详见[移动端架构评估与建议](../docs/architecture/mobile/expo-architecture.md)。
+
+### 编辑交互的性能边界
+
+- `components/interaction/` 管理原生手势、命中适配与跨线程传递。Reanimated 驱动影像
+  transform、SVG 视口和当前控制点的即时预览；手势闭包不捕获普通 JS 编辑会话。
+- UI 线程每显示帧至多提交一个最新坐标，业务计算至多一个在途。忙时覆盖待处理坐标，
+  松手独立刷新最终位置；取消、双指接管或卸载后，旧手势的事件不能继续编辑。
+- `ImageEditorSession` 继续持有标注事实、关联规则、撤销和保存。画布与测量列表订阅
+  高频预览，页面操作栏/导航只订阅事务边界；关闭的面板不构造内容。一次拖动仍只产生
+  一条历史，拖动不调用保存 API。
+- core 按明确的关键点依赖更新相关测量，手动绑定只复制变化的几何。UI 控制点的水平/
+  垂直约束也由 core 提供；复杂医学联动和测量值留在 JS 应用层，按帧更新。
+
+性能验收请用同一张正位/侧位影像，对比连续拖点、显示关键点、联动 PI/PT/TPA、双指
+缩放和平移，并检查撤销后再保存/重开。浏览器和桌面计算基准不能替代真机帧率与跟手体验。
+
+2026-10-22 本轮优化通过移动端类型检查、lint 和 75 项测试，共享 imaging-core 类型检查
+和 255 项测试；Web 类型检查及 419 项测试通过，lint 无错误、保留 63 项既有警告。
+Web 会话集成测试的回环端口在沙箱中被禁止，已在主机单独重跑通过。
+Android release APK 与 Android/iOS/Web production bundle 构建通过。浏览器使用本地
+合成影像验证了拖点、水平线绘图/约束、缩放平移、单次撤销、保存和重新读取；没有操作
+生产数据。实际 Android 的帧率、持续跟手体验和 iOS 原生交互仍需设备验收。
 
 ## 检查与验证边界
 
