@@ -6,11 +6,14 @@ import { requireSupportedImage } from '../../features/imaging/domain/supportedIm
 export function createImageEditorGateway(
   imaging: Pick<
     XieheApiSdk['imaging'],
-    'get' | 'getDownloadUrl' | 'getDownloadUrls' | 'saveAnnotation'
-  >
+    'get' | 'getDownloadUrl' | 'getDownloadUrls' | 'saveAnnotation' | 'predict'
+  >,
+  reports: Pick<XieheApiSdk['reports'], 'generate'>
 ): ImageEditorGateway {
   return {
     getImage: imaging.get,
+    measure: imaging.predict,
+    generate: reports.generate,
     async getPreview(image) {
       requireSupportedImage(image.file_type);
       if (image.file_type === 'PNG' || image.file_type === 'JPEG') {

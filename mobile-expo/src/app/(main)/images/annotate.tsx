@@ -3,9 +3,13 @@ import { useWorkspace } from '../../../application/AppProvider';
 import { ImageEditorScreen } from '../../../features/image-editor';
 
 export default function ImageAnnotationRoute() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, panel } = useLocalSearchParams<{ id: string; panel?: string }>();
   const { services } = useWorkspace();
   return (
-    <ImageEditorScreen imageId={Number(id)} gateway={services.imageEditor} />
+    <ImageEditorScreen
+      imageId={Number(id)}
+      gateway={services.imageEditor}
+      initialPanel={panel}
+    />
   );
 }

@@ -93,7 +93,7 @@ describe('image editor HTTP adapter', () => {
     const sdk = createXieheApiSdk({ http });
     const session = new ImageEditorSession(
       42,
-      createImageEditorGateway(sdk.imaging)
+      createImageEditorGateway(sdk.imaging, sdk.reports)
     );
     await session.load();
     session.imageLoaded({ width: 1200, height: 2400 });

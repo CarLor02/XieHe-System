@@ -25,7 +25,7 @@ import {
 } from '../domain/presentation';
 import { savedMeasurements, savedReport } from '../domain/measurements';
 import { ImageViewport } from './ImageViewport';
-import { AnalysisSheet } from './AnalysisSheet';
+import { isSupportedImage } from '../domain/supportedImage';
 
 export function ImageDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -91,6 +91,7 @@ export function ImageDetailScreen() {
           <>
             <Button
               title="绘图与标注"
+              disabled={!isSupportedImage(image.file_type)}
               icon="create-outline"
               onPress={() =>
                 router.push({
@@ -147,12 +148,7 @@ export function ImageDetailScreen() {
                 </Text>
               </Card>
             )}
-            <AnalysisSheet
-              key={`${image.id}-${image.annotation_version}`}
-              imageId={image.id}
-              examType={image.description ?? ''}
-              initialMeasurements={measurements}
-            />
+            <Button title="AI 测量与报告" icon="sparkles-outline" disabled={!isSupportedImage(image.file_type)} onPress={() => router.push({ pathname: '/images/annotate', params: { id: image.id, panel: 'analysis' } })} />
           </>
         )}
       </Content>

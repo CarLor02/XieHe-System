@@ -14,7 +14,7 @@ export function createMobileServices(
   const sdk = api.apiSdk;
   const storage = createHttpClientAdapter(createStellarmeshHttp({ raw: true }));
   return {
-    imageEditor: createImageEditorGateway(sdk.imaging),
+    imageEditor: createImageEditorGateway(sdk.imaging, sdk.reports),
     patients: sdk.patients,
     imaging: sdk.imaging,
     dashboard: sdk.dashboard,

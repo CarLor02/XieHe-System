@@ -12,21 +12,27 @@ import { EditorCanvas } from './EditorCanvas';
 import { EditorButton } from './EditorButton';
 import { EditorConfirmDialog } from './EditorConfirmDialog';
 import { EditorToolSheet } from './EditorToolSheet';
+import { BindingSheet } from './BindingSheet';
+import { EditorAnalysisSheet } from './EditorAnalysisSheet';
 import { MeasurementPanel } from './MeasurementPanel';
 import { editorColors as c, editorStyles as s } from './editorTheme';
 
-type Confirmation = 'clear' | 'delete' | 'reload' | 'leave' | null;
+type Confirmation = 'clear' | 'delete' | 'reload' | 'leave' | 'ai' | null;
 
 export function ImageEditorScreen({
   imageId,
   gateway,
+  initialPanel,
 }: {
   imageId: number;
   gateway: ImageEditorGateway;
+  initialPanel?: string;
 }) {
   const { session, state } = useImageEditor(imageId, gateway);
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
+  const [analysisOpen, setAnalysisOpen] = useState(initialPanel === 'analysis');
+  const [bindingsOpen, setBindingsOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [measurementsOpen, setMeasurementsOpen] = useState(true);
   const [showLabels, setShowLabels] = useState(true);
@@ -37,11 +43,14 @@ export function ImageEditorScreen({
   const [pendingLeave, setPendingLeave] = useState<(() => void) | null>(null);
   const [allowLeave, setAllowLeave] = useState(false);
   const hasDraft = state.dirty || !!state.drawing || state.dragging;
-  usePreventRemove(!allowLeave && (hasDraft || state.saving), ({ data }) => {
-    if (state.saving) return;
-    setPendingLeave(() => () => navigation.dispatch(data.action));
-    setConfirmation('leave');
-  });
+  usePreventRemove(
+    !allowLeave && (hasDraft || state.saving || !!state.working),
+    ({ data }) => {
+      if (state.saving || state.working) return;
+      setPendingLeave(() => () => navigation.dispatch(data.action));
+      setConfirmation('leave');
+    }
+  );
   useEffect(() => {
     if (allowLeave && pendingLeave) pendingLeave();
   }, [allowLeave, pendingLeave]);
@@ -50,7 +59,7 @@ export function ImageEditorScreen({
       ? router.back()
       : router.replace({ pathname: '/images/[id]', params: { id: imageId } });
   const leave = () => {
-    if (state.saving) return;
+    if (state.saving || state.working) return;
     if (hasDraft) {
       setPendingLeave(() => goBack);
       setConfirmation('leave');
@@ -72,6 +81,7 @@ export function ImageEditorScreen({
     }
   };
   const confirm = () => {
+    if (confirmation === 'ai') void session.analyze();
     if (confirmation === 'clear') session.clear();
     if (confirmation === 'delete') session.deleteSelected();
     if (confirmation === 'reload') {
@@ -90,6 +100,13 @@ export function ImageEditorScreen({
   }[kind];
   const blocked = !session.editable || !!state.drawing || state.dragging;
   const confirmations = {
+    ai: {
+      title: '重新运行 AI 测量？',
+      description:
+        '将替换当前测量、关键点和手动绑定。服务器标注保持到你点击保存后更新，本次替换可以撤销。',
+      confirmLabel: '开始测量',
+      danger: false,
+    },
     clear: {
       title: '清除全部标注？',
       description:
@@ -133,7 +150,7 @@ export function ImageEditorScreen({
             icon="arrow-back"
             label="返回影像详情"
             onPress={leave}
-            disabled={state.saving}
+            disabled={state.saving || !!state.working}
           />
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={styles.title}>影像标注</Text>
@@ -205,6 +222,13 @@ export function ImageEditorScreen({
               <>
                 <EditorButton
                   compact
+                  label="AI 测量与报告"
+                  icon="sparkles-outline"
+                  onPress={() => setAnalysisOpen(true)}
+                  disabled={!session.canAnalyze}
+                />
+                <EditorButton
+                  compact
                   label={showLabels ? '隐藏参数标签' : '显示参数标签'}
                   icon={showLabels ? 'eye-outline' : 'eye-off-outline'}
                   active={showLabels}
@@ -226,6 +250,13 @@ export function ImageEditorScreen({
                   icon="construct-outline"
                   onPress={() => setToolsOpen(true)}
                   disabled={!session.editable}
+                />
+                <EditorButton
+                  compact
+                  label="共享点位绑定"
+                  icon="link-outline"
+                  disabled={blocked}
+                  onPress={() => setBindingsOpen(true)}
                 />
                 {!!session.snapshot?.keypoints.length && (
                   <EditorButton
@@ -252,6 +283,14 @@ export function ImageEditorScreen({
               </>
             }
           />
+          {!!state.working && (
+            <View style={styles.message}>
+              <ActivityIndicator color={c.blueLight} />
+              <Text style={styles.messageText}>
+                {state.working === 'ai' ? '正在运行 AI 测量…' : '正在生成报告…'}
+              </Text>
+            </View>
+          )}
           {!!state.error && (
             <View style={styles.banner}>
               <Icon name="alert-circle-outline" color={c.danger} size={18} />
@@ -261,7 +300,7 @@ export function ImageEditorScreen({
                 label="重新读取影像"
                 icon="reload"
                 onPress={reload}
-                disabled={state.saving}
+                disabled={state.saving || !!state.working}
               />
             </View>
           )}
@@ -364,6 +403,24 @@ export function ImageEditorScreen({
               </View>
             </View>
           )}
+          {bindingsOpen && (
+            <BindingSheet
+              session={session}
+              onClose={() => setBindingsOpen(false)}
+            />
+          )}
+          <EditorAnalysisSheet
+            session={session}
+            state={state}
+            open={analysisOpen}
+            onClose={() => {
+              if (!state.working && !state.saving) setAnalysisOpen(false);
+            }}
+            onAnalyze={() => {
+              setAnalysisOpen(false);
+              setConfirmation('ai');
+            }}
+          />
           <EditorToolSheet
             key={`${imageId}-${state.annotationVersion}-${toolsOpen}`}
             session={session}

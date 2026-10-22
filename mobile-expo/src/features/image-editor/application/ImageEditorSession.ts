@@ -1,6 +1,12 @@
 import { getApiErrorMessage, getApiErrorStatus } from '@xiehe/api-client';
 import type { ImageFileResponse } from '@xiehe/api-contracts/generated';
-import { getAnnotationTypeId } from '@xiehe/imaging-catalog/annotations';
+import { runAiMeasurement } from '@xiehe/imaging-core/ai';
+import { runMeasurementReport } from '@xiehe/imaging-core/reports';
+import {
+  getAnnotationConfig,
+  getDescriptionForType,
+  getAnnotationTypeId,
+} from '@xiehe/imaging-catalog/annotations';
 import { getToolsForExamType } from '@xiehe/imaging-catalog/tools';
 import {
   decodeAnnotationDocument,
@@ -35,6 +41,8 @@ import {
   getAvtTargetKey,
   isAvtMetadata,
 } from '@xiehe/imaging-core/measurements/ap';
+import type { PointRef } from '@xiehe/imaging-core/bindings';
+import { bindSelectedPoints } from './manualBindings';
 import { dragAnnotation, type EditorSelection } from './dragAnnotation';
 import { recalculateSnapshot, synchronizeKeypoints } from './editorSnapshot';
 import { measurementCalculator } from './measurementValues';
@@ -59,6 +67,7 @@ export interface EditorState {
   reportText: string;
   dirty: boolean;
   saving: boolean;
+  working: 'ai' | 'report' | null;
   conflict: boolean;
   error: string;
   message: string;
@@ -88,6 +97,7 @@ export class ImageEditorSession {
     reportText: '',
     dirty: false,
     saving: false,
+    working: null,
     conflict: false,
     error: '',
     message: '',
@@ -100,6 +110,7 @@ export class ImageEditorSession {
   private listeners = new Set<() => void>();
   private generation = 0;
   private sequence = 0;
+  private savedReport = '';
   private savedSnapshot: AnnotationEditorSnapshot | null = null;
   private drawingBase: AnnotationEditorSnapshot | null = null;
   private dragBase: AnnotationEditorSnapshot | null = null;
@@ -124,7 +135,19 @@ export class ImageEditorSession {
       this.state.imageReady &&
       !!this.state.imageSize &&
       !this.state.saving &&
+      !this.state.working &&
       !this.state.conflict
+    );
+  }
+  get canAnalyze() {
+    return (
+      this.state.status === 'ready' &&
+      this.state.imageReady &&
+      !this.state.saving &&
+      !this.state.working &&
+      !this.state.conflict &&
+      !this.state.drawing &&
+      !this.state.dragging
     );
   }
   get context() {
@@ -159,7 +182,8 @@ export class ImageEditorSession {
       history: observeAnnotationHistoryPresent(begun, snapshot, historyPolicy),
       dirty:
         !this.savedSnapshot ||
-        !historyPolicy.equals(snapshot, this.savedSnapshot),
+        !historyPolicy.equals(snapshot, this.savedSnapshot) ||
+        this.state.reportText !== this.savedReport,
       message: '',
       error: '',
     });
@@ -175,6 +199,7 @@ export class ImageEditorSession {
       error: '',
       imageReady: false,
       saving: false,
+      working: null,
       drawing: null,
       drawingPreview: [],
       selection: null,
@@ -202,6 +227,7 @@ export class ImageEditorSession {
         aiMeasurementIds: [],
       };
       this.savedSnapshot = historyPolicy.clone(snapshot);
+      this.savedReport = prepared.reportText;
       // 坐标空间属于文档。缩略图的像素大小只参与显示，绝不能替换原图坐标。
       const imageSize =
         document?.imageWidth && document.imageHeight
@@ -448,7 +474,9 @@ export class ImageEditorSession {
     this.update({
       history: restored.state,
       selection: null,
-      dirty: !historyPolicy.equals(restored.state.present, this.savedSnapshot!),
+      dirty:
+        !historyPolicy.equals(restored.state.present, this.savedSnapshot!) ||
+        this.state.reportText !== this.savedReport,
       error: '',
       message: '',
     });
@@ -526,6 +554,159 @@ export class ImageEditorSession {
     });
     this.update({ selection: null });
   }
+  bindPoints(points: PointRef[]): boolean {
+    if (
+      !this.editable ||
+      !this.snapshot ||
+      this.state.drawing ||
+      this.state.dragging
+    )
+      return false;
+    try {
+      this.commit(
+        bindSelectedPoints(
+          this.snapshot,
+          points,
+          `manual-${this.imageId}-${Date.now()}-${++this.sequence}`,
+          this.context
+        )
+      );
+      return true;
+    } catch (cause) {
+      this.update({ error: getApiErrorMessage(cause) });
+      return false;
+    }
+  }
+  removeBinding(id?: string) {
+    if (!this.editable || !this.snapshot) return;
+    this.commit({
+      ...this.snapshot,
+      pointBindings: {
+        ...this.snapshot.pointBindings,
+        syncGroups: id
+          ? this.snapshot.pointBindings.syncGroups.filter(
+              group => group.id !== id
+            )
+          : [],
+      },
+    });
+  }
+
+  setReportText(reportText: string) {
+    if (!this.editable || !this.snapshot) return;
+    this.update({
+      reportText,
+      dirty:
+        reportText !== this.savedReport ||
+        !this.savedSnapshot ||
+        !historyPolicy.equals(this.snapshot, this.savedSnapshot),
+    });
+  }
+
+  async analyze(): Promise<boolean> {
+    if (!this.canAnalyze || !this.snapshot) return false;
+    const generation = this.generation;
+    const base = historyPolicy.clone(this.snapshot);
+    this.update({ working: 'ai', error: '', message: '' });
+    try {
+      // 与 Web 一致：AI 替换测量及检测层，清空手动绑定；用户核对后才保存。
+      const result = await runAiMeasurement({
+        imageId: this.imageId,
+        examType: this.context.examType,
+        actualImageSize: this.state.imageSize,
+        port: this.gateway,
+        resolveTool: type => {
+          const tool = getAnnotationConfig(type);
+          return tool
+            ? {
+                id: tool.id,
+                category:
+                  tool.category === 'measurement' ? 'measurement' : 'support',
+                pointsNeeded: tool.pointsNeeded,
+              }
+            : null;
+        },
+        calculateValue: (type, points) =>
+          measurementCalculator.calculateType(type, points, {
+            ...this.context,
+            standardDistance: null,
+            standardDistancePoints: [],
+          }),
+        describeType: getDescriptionForType,
+        createId: () => `ai-${this.imageId}-${++this.sequence}`,
+      });
+      if (generation !== this.generation) return false;
+      if (result.status === 'empty' || !result.state.measurements.length)
+        throw new Error('AI 未返回有效测量，已保留当前标注');
+      const prepared = result.state;
+      if (
+        !prepared.imageSize ||
+        prepared.imageSize.width <= 0 ||
+        prepared.imageSize.height <= 0
+      )
+        throw new Error('AI 未返回原图尺寸，已保留当前标注');
+      // TIFF 预览不能提供坐标尺寸；模型返回的原图尺寸可建立首次标注坐标系。
+      this.update({ imageSize: prepared.imageSize });
+      this.commit({
+        ...base,
+        measurements: prepared.measurements,
+        keypoints: prepared.keypoints,
+        vertebraeLayer: prepared.vertebraeLayer,
+        cfhAnnotation: prepared.cfhAnnotation,
+        pointBindings: createEmptyBindings(),
+        aiMeasurementIds: prepared.measurements.map(m => m.id),
+      });
+      this.update({
+        selection: null,
+        tool: 'hand',
+        message: 'AI 测量已载入，请核对点位后保存；可撤销此次替换',
+      });
+      return true;
+    } catch (cause) {
+      if (generation === this.generation)
+        this.update({ error: getApiErrorMessage(cause, 'AI 测量失败') });
+      return false;
+    } finally {
+      if (generation === this.generation) this.update({ working: null });
+    }
+  }
+
+  async generateReport(): Promise<boolean> {
+    if (
+      !this.editable ||
+      !this.snapshot ||
+      this.state.drawing ||
+      this.state.dragging
+    )
+      return false;
+    const generation = this.generation;
+    this.update({ working: 'report', error: '', message: '' });
+    try {
+      const result = await runMeasurementReport({
+        study: {
+          imageId: String(this.imageId),
+          examType: this.context.examType,
+        },
+        measurements: this.snapshot.measurements,
+        port: this.gateway,
+      });
+      if (generation !== this.generation) return false;
+      if (result.status === 'empty') throw new Error(result.message);
+      this.update({
+        reportText: result.report,
+        dirty: true,
+        message: '报告已生成，保存标注时将一并保存',
+      });
+      return true;
+    } catch (cause) {
+      if (generation === this.generation)
+        this.update({ error: getApiErrorMessage(cause, '报告生成失败') });
+      return false;
+    } finally {
+      if (generation === this.generation) this.update({ working: null });
+    }
+  }
+
   async save(): Promise<boolean> {
     if (!this.editable || !this.snapshot) return false;
     if (this.state.drawing || this.state.dragging) {
@@ -549,6 +730,7 @@ export class ImageEditorSession {
       });
       if (generation !== this.generation) return false;
       this.savedSnapshot = snapshot;
+      this.savedReport = this.state.reportText;
       this.update({
         annotationVersion: result.annotation_version,
         dirty: false,

@@ -76,6 +76,12 @@ function document(measurements: MeasurementData[] = []) {
 }
 async function setup(source = image(document()), thumbnail = false) {
   const gateway = {
+    measure: vi
+      .fn<ImageEditorGateway['measure']>()
+      .mockResolvedValue({ measurements: [] }),
+    generate: vi
+      .fn<ImageEditorGateway['generate']>()
+      .mockResolvedValue({ report: '生成报告' }),
     getImage: vi.fn<ImageEditorGateway['getImage']>().mockResolvedValue(source),
     getPreview: vi
       .fn<ImageEditorGateway['getPreview']>()
@@ -495,6 +501,8 @@ describe('mobile image editing workflow', () => {
   it('ignores a completed load after the screen session has been cancelled', async () => {
     let resolve!: (value: ImageFileResponse) => void;
     const gateway: ImageEditorGateway = {
+      measure: vi.fn(),
+      generate: vi.fn(),
       getImage: () =>
         new Promise(r => {
           resolve = r;
@@ -509,5 +517,165 @@ describe('mobile image editing workflow', () => {
     await pending;
     expect(session.getState().status).toBe('loading');
     expect(session.snapshot).toBeNull();
+  });
+});
+
+describe('AI and report application workflow', () => {
+  const prediction = {
+    imageId: '42',
+    imageWidth: 1000,
+    imageHeight: 2000,
+    measurements: [
+      {
+        type: 'CA',
+        points: [
+          { x: 100, y: 200 },
+          { x: 300, y: 210 },
+        ],
+        value: '2.86°',
+      },
+    ],
+  };
+  it('applies real AI data as one undoable draft and saves the generated report with the document version', async () => {
+    const { session, gateway } = await setup();
+    gateway.measure.mockResolvedValue(prediction);
+    expect(await session.analyze()).toBe(true);
+    expect(session.snapshot?.measurements[0].value).toBe('2.86°');
+    expect(gateway.save).not.toHaveBeenCalled();
+    session.undo();
+    expect(session.snapshot?.measurements).toEqual([]);
+    expect(session.getState().dirty).toBe(false);
+    session.redo();
+    expect(await session.generateReport()).toBe(true);
+    expect(gateway.generate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        imageId: '42',
+        measurements: [expect.objectContaining({ value: '2.86°' })],
+      })
+    );
+    session.undo();
+    expect(session.getState().dirty).toBe(true); // Report changes survive measurement undo.
+    session.redo();
+    expect(await session.save()).toBe(true);
+    expect(gateway.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        expectedVersion: 7,
+        annotation: expect.objectContaining({ reportText: '生成报告' }),
+      })
+    );
+    expect(session.getState().dirty).toBe(false);
+  });
+  it('keeps annotations and report when AI or report generation fails', async () => {
+    const { session, gateway } = await setup();
+    const before = session.snapshot;
+    gateway.measure.mockRejectedValue(new Error('AI unavailable'));
+    expect(await session.analyze()).toBe(false);
+    expect(session.snapshot).toEqual(before);
+    expect(session.getState().working).toBeNull();
+    gateway.measure.mockResolvedValue(prediction);
+    await session.analyze();
+    gateway.generate.mockRejectedValue(new Error('report unavailable'));
+    expect(await session.generateReport()).toBe(false);
+    expect(session.getState().reportText).toBe('已有报告');
+    expect(gateway.save).not.toHaveBeenCalled();
+  });
+  it('blocks edits and duplicate AI requests while pending and ignores the result after reload', async () => {
+    const { session, gateway } = await setup();
+    let finish!: (value: typeof prediction) => void;
+    gateway.measure.mockImplementation(
+      () =>
+        new Promise(resolve => {
+          finish = resolve;
+        })
+    );
+    const pending = session.analyze();
+    expect(session.editable).toBe(false);
+    expect(await session.analyze()).toBe(false);
+    expect(await session.save()).toBe(false);
+    await session.load();
+    finish(prediction);
+    expect(await pending).toBe(false);
+    expect(session.snapshot?.measurements).toEqual([]);
+  });
+  it('uses model original dimensions to initialize a TIFF document, never thumbnail dimensions', async () => {
+    const legacy = document();
+    delete legacy.imageWidth;
+    delete legacy.imageHeight;
+    const { session, gateway } = await setup(
+      image(legacy, { file_type: 'TIFF' }),
+      true
+    );
+    expect(session.editable).toBe(false);
+    gateway.measure.mockResolvedValue(prediction);
+    expect(await session.analyze()).toBe(true);
+    expect(session.editable).toBe(true);
+    expect(await session.save()).toBe(true);
+    expect(gateway.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        annotation: expect.objectContaining({
+          imageWidth: 1000,
+          imageHeight: 2000,
+        }),
+      })
+    );
+  });
+});
+
+describe('manual binding application', () => {
+  it('merges chosen points using the last anchor, persists and undoes the binding atomically', async () => {
+    const measurements: MeasurementData[] = [
+      {
+        id: 'a',
+        type: 'distance',
+        points: [
+          { x: 10, y: 20 },
+          { x: 50, y: 20 },
+        ],
+        value: '20mm',
+      },
+      {
+        id: 'b',
+        type: 'distance',
+        points: [
+          { x: 100, y: 120 },
+          { x: 200, y: 120 },
+        ],
+        value: '50mm',
+      },
+    ];
+    const { session, gateway } = await setup(image(document(measurements)));
+    expect(
+      session.bindPoints([
+        { annotationId: 'a', pointIndex: 0 },
+        { annotationId: 'b', pointIndex: 0 },
+      ])
+    ).toBe(true);
+    expect(session.snapshot?.measurements[0].points[0]).toEqual({
+      x: 100,
+      y: 120,
+    });
+    expect(session.snapshot?.pointBindings.syncGroups).toHaveLength(1);
+    session.undo();
+    expect(session.snapshot?.measurements[0].points[0]).toEqual({
+      x: 10,
+      y: 20,
+    });
+    expect(session.snapshot?.pointBindings.syncGroups).toEqual([]);
+    session.redo();
+    await session.save();
+    expect(
+      gateway.save.mock.calls[0][0].annotation.pointBindings
+    ).toMatchObject({
+      syncGroups: [
+        {
+          members: [
+            expect.objectContaining({ annotationId: 'a' }),
+            expect.objectContaining({ annotationId: 'b' }),
+          ],
+        },
+      ],
+    });
+    session.removeBinding();
+    expect(session.snapshot?.pointBindings.syncGroups).toEqual([]);
   });
 });
