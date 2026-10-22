@@ -16,6 +16,7 @@ import {
   type Point,
 } from '@xiehe/imaging-core/contracts';
 import { ImageEditorSession } from './ImageEditorSession';
+import { EditorReadoutStore } from './EditorReadoutStore';
 import type { ImageEditorGateway } from './ports';
 import { imageToScreen } from '@xiehe/imaging-core/canvas';
 import { CanvasInteraction } from '../components/interaction/CanvasInteraction';
@@ -106,6 +107,108 @@ function draw(session: ImageEditorSession, type: string, supplied: Point[]) {
 }
 
 describe('mobile image editing workflow', () => {
+  it('throttles readouts during a drag but immediately publishes the final or cancelled state', async () => {
+    const { session } = await setup(
+      image(
+        document([
+          {
+            id: 'line',
+            type: 'aux-length',
+            value: '100mm',
+            points: points.slice(0, 2),
+          },
+        ])
+      )
+    );
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+    try {
+      const readouts = new EditorReadoutStore(session);
+      const listener = vi.fn();
+      const unsubscribe = readouts.subscribe(listener);
+      session.beginDrag({
+        kind: 'point',
+        measurementId: 'line',
+        pointIndex: 0,
+      });
+      expect(readouts.getState().dragging).toBe(true);
+      listener.mockClear();
+      const before = readouts.getState();
+      for (let x = 110; x <= 200; x++) session.moveDrag({ x, y: 150 });
+      expect(readouts.getState()).toBe(before);
+      expect(listener).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(100);
+      expect(listener).toHaveBeenCalledOnce();
+      expect(readouts.getState().history?.present).toBe(session.snapshot);
+      session.moveDrag({ x: 250, y: 200 });
+      session.endDrag();
+      expect(readouts.getState().history?.present).toBe(session.snapshot);
+      expect(readouts.getState().dragging).toBe(false);
+      const committed = readouts.getState();
+      vi.advanceTimersByTime(200);
+      expect(readouts.getState()).toBe(committed);
+      session.beginDrag({
+        kind: 'point',
+        measurementId: 'line',
+        pointIndex: 0,
+      });
+      session.moveDrag({ x: 999, y: 999 });
+      session.cancelDrag();
+      const cancelled = readouts.getState();
+      expect(cancelled.history?.present.measurements[0].points[0]).toEqual({
+        x: 250,
+        y: 200,
+      });
+      vi.advanceTimersByTime(200);
+      expect(readouts.getState()).toBe(cancelled);
+      unsubscribe();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('releases pending readout timers when the last view unsubscribes and reconnects to fresh state', async () => {
+    const { session } = await setup(
+      image(
+        document([
+          {
+            id: 'line',
+            type: 'aux-length',
+            value: '',
+            points: points.slice(0, 2),
+          },
+        ])
+      )
+    );
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+    try {
+      const readouts = new EditorReadoutStore(session),
+        first = vi.fn(),
+        second = vi.fn();
+      const unsubscribeFirst = readouts.subscribe(first),
+        unsubscribeSecond = readouts.subscribe(second);
+      session.beginDrag({
+        kind: 'point',
+        measurementId: 'line',
+        pointIndex: 0,
+      });
+      session.moveDrag({ x: 200, y: 300 });
+      first.mockClear();
+      second.mockClear();
+      unsubscribeFirst();
+      vi.advanceTimersByTime(100);
+      expect(first).not.toHaveBeenCalled();
+      expect(second).toHaveBeenCalledOnce();
+      session.moveDrag({ x: 250, y: 350 });
+      unsubscribeSecond();
+      expect(vi.getTimerCount()).toBe(0);
+      session.endDrag();
+      const detach = readouts.subscribe(first);
+      expect(readouts.getState()).toBe(session.getState());
+      detach();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
   it('isolates preview subscribers, keeps the immutable baseline and flushes the final gesture coordinate', async () => {
     const { session, gateway } = await setup(
       image(

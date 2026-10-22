@@ -1,4 +1,10 @@
-import { useState, useSyncExternalStore, type ReactNode } from 'react';
+import {
+  useLayoutEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from 'react';
 import { Image } from 'expo-image';
 import {
   ActivityIndicator,
@@ -15,17 +21,23 @@ import {
 } from '@xiehe/imaging-core/canvas';
 import type { ImageSize } from '@xiehe/imaging-core/contracts';
 import type { ImageEditorSession } from '../application/ImageEditorSession';
+import type { EditorReadoutStore } from '../application/EditorReadoutStore';
+import type { DragPerformanceMonitor } from './interaction/dragPerformance';
 import { useCanvasGestures } from './interaction/useCanvasGestures';
 import { AnnotationOverlay } from './AnnotationOverlay';
 import { EditorButton } from './EditorButton';
 import { editorColors as c } from './editorTheme';
 export function EditorCanvas({
   session,
+  readouts,
+  diagnostics,
   showLabels,
   showKeypoints,
   controls,
 }: {
   session: ImageEditorSession;
+  readouts: EditorReadoutStore;
+  diagnostics: DragPerformanceMonitor;
   showLabels: boolean;
   showKeypoints: boolean;
   controls: ReactNode;
@@ -47,15 +59,27 @@ export function EditorCanvas({
     renderedViewport,
     preview: dragPreview,
     zoom,
-  } = useCanvasGestures(session, size, container, {
-    dragging: state.dragging,
-    drawing: !!state.drawing,
-  });
-  const context: TransformContext = {
-    ...renderedViewport,
-    containerSize: container,
-    imageNaturalSize: size,
-  };
+  } = useCanvasGestures(
+    session,
+    size,
+    container,
+    {
+      dragging: state.dragging,
+      drawing: !!state.drawing,
+    },
+    diagnostics
+  );
+  useLayoutEffect(() => {
+    if (state.dragging) diagnostics.committed();
+  }, [diagnostics, state.dragging, state.history]);
+  const context: TransformContext = useMemo(
+    () => ({
+      ...renderedViewport,
+      containerSize: container,
+      imageNaturalSize: size,
+    }),
+    [renderedViewport, container, size]
+  );
   const fitContext: TransformContext = {
     ...context,
     imageScale: 1,
@@ -155,6 +179,8 @@ export function EditorCanvas({
           {state.history && state.imageSize && (
             <AnnotationOverlay
               snapshot={state.history.present}
+              baseline={session.dragBaseline}
+              readouts={readouts}
               viewport={viewport}
               dragPreview={dragPreview}
               context={context}

@@ -27,6 +27,38 @@ export type MoveMailbox = {
   inFlight: boolean;
 };
 
+export function controlPointKey(selection: EditorSelection): string {
+  'worklet';
+  if (selection.kind === 'point')
+    return `point:${selection.measurementId}:${selection.pointIndex}`;
+  if (selection.kind === 'keypoint') return `keypoint:${selection.keypointId}`;
+  if (selection.kind === 'calibration')
+    return `calibration:${selection.pointIndex}`;
+  if (selection.kind === 'effective-cfh')
+    return `cfh:${selection.measurementId}`;
+  return '';
+}
+
+export function projectControlPoint(
+  point: Point,
+  origin: Point,
+  unit: number,
+  viewport: Viewport,
+  center: Point
+): Point {
+  'worklet';
+  return {
+    x:
+      (origin.x + point.x * unit - center.x) * viewport.imageScale +
+      viewport.imagePosition.x +
+      center.x,
+    y:
+      (origin.y + point.y * unit - center.y) * viewport.imageScale +
+      viewport.imagePosition.y +
+      center.y,
+  };
+}
+
 export function emptyMailbox(): MoveMailbox {
   'worklet';
   return { latest: null, revision: 0, sent: 0, inFlight: false };

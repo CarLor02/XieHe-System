@@ -41,12 +41,14 @@ export function EditorToolSheet({
   open,
   onClose,
   onReload,
+  onOpenPerformance,
 }: {
   session: ImageEditorSession;
   state: EditorState;
   open: boolean;
   onClose: () => void;
   onReload: () => void;
+  onOpenPerformance: () => void;
 }) {
   const [configured, setConfigured] = useState('');
   const [distance, setDistance] = useState(
@@ -384,6 +386,11 @@ export function EditorToolSheet({
                 onClose();
                 onReload();
               }}
+            />
+            <EditorButton
+              label="画布性能统计"
+              icon="speedometer-outline"
+              onPress={onOpenPerformance}
             />
           </ScrollView>
         </KeyboardAvoidingView>

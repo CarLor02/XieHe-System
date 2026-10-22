@@ -5,7 +5,7 @@ import {
 } from '@xiehe/imaging-catalog/annotations';
 import { memo, useSyncExternalStore } from 'react';
 import type { MeasurementData } from '@xiehe/imaging-core/contracts';
-import type { ImageEditorSession } from '../application/ImageEditorSession';
+import type { EditorReadoutStore } from '../application/EditorReadoutStore';
 import { EditorButton } from './EditorButton';
 import { editorColors as c, editorStyles as s } from './editorTheme';
 
@@ -47,22 +47,22 @@ const MeasurementRow = memo(function MeasurementRow({
 });
 
 export function MeasurementPanel({
-  session,
+  readouts,
   disabled,
   onSelect,
   onDelete,
   onClose,
 }: {
-  session: ImageEditorSession;
+  readouts: EditorReadoutStore;
   disabled: boolean;
   onSelect: (id: string) => void;
   onDelete: () => void;
   onClose: () => void;
 }) {
   const state = useSyncExternalStore(
-    session.subscribe,
-    session.getState,
-    session.getState
+    readouts.subscribe,
+    readouts.getState,
+    readouts.getState
   );
   const measurements = state.history?.present.measurements ?? [];
   const selection = state.selection;

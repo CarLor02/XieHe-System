@@ -140,6 +140,10 @@ export class ImageEditorSession {
   get snapshot() {
     return this.state.history?.present ?? null;
   }
+  /** 不可变的拖动基线，用于展示层区分静态标注与受影响的几何。 */
+  get dragBaseline() {
+    return this.dragBase;
+  }
   get editable() {
     return (
       this.state.status === 'ready' &&

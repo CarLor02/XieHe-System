@@ -15,6 +15,8 @@ import { EditorToolSheet } from './EditorToolSheet';
 import { BindingSheet } from './BindingSheet';
 import { EditorAnalysisSheet } from './EditorAnalysisSheet';
 import { MeasurementPanel } from './MeasurementPanel';
+import { DragPerformanceMonitor } from './interaction/dragPerformance';
+import { EditorPerformanceSheet } from './EditorPerformanceSheet';
 import { editorColors as c, editorStyles as s } from './editorTheme';
 
 type Confirmation = 'clear' | 'delete' | 'reload' | 'leave' | 'ai' | null;
@@ -28,7 +30,9 @@ export function ImageEditorScreen({
   gateway: ImageEditorGateway;
   initialPanel?: string;
 }) {
-  const { session, state } = useImageEditor(imageId, gateway);
+  const { session, state, readouts } = useImageEditor(imageId, gateway);
+  const [diagnostics] = useState(() => new DragPerformanceMonitor());
+  const [performanceOpen, setPerformanceOpen] = useState(false);
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const [analysisOpen, setAnalysisOpen] = useState(initialPanel === 'analysis');
@@ -215,6 +219,8 @@ export function ImageEditorScreen({
           <EditorCanvas
             key={`${imageId}-${state.preview?.uri}-${resetToken}`}
             session={session}
+            readouts={readouts}
+            diagnostics={diagnostics}
             showLabels={showLabels}
             showKeypoints={showKeypoints}
             controls={
@@ -337,7 +343,7 @@ export function ImageEditorScreen({
           )}
           {!fullscreen && measurementsOpen && (
             <MeasurementPanel
-              session={session}
+              readouts={readouts}
               disabled={state.saving || !session.editable}
               onSelect={id => {
                 session.cancelDrawing();
@@ -429,6 +435,10 @@ export function ImageEditorScreen({
               open={toolsOpen}
               onClose={() => setToolsOpen(false)}
               onReload={reload}
+              onOpenPerformance={() => {
+                setToolsOpen(false);
+                setPerformanceOpen(true);
+              }}
             />
           )}
         </>
@@ -438,6 +448,12 @@ export function ImageEditorScreen({
           {...confirmations[confirmation]}
           onCancel={() => setConfirmation(null)}
           onConfirm={confirm}
+        />
+      )}
+      {performanceOpen && (
+        <EditorPerformanceSheet
+          monitor={diagnostics}
+          onClose={() => setPerformanceOpen(false)}
         />
       )}
     </View>
