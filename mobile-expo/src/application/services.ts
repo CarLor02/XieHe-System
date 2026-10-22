@@ -1,3 +1,4 @@
+import type { TeamsGateway } from '../features/teams';
 import type { XieheApiSdk } from '@xiehe/api-sdk';
 import type { MobileUploadFile } from '../features/imaging/domain/upload';
 import type { ImageEditorGateway } from '../features/image-editor';
@@ -23,7 +24,7 @@ export interface MobileServices {
     | 'delete'
   >;
   dashboard: Pick<XieheApiSdk['dashboard'], 'getStats' | 'getRecentActivities'>;
-  teams: Pick<XieheApiSdk['teams'], 'listMine'>;
+  teams: TeamsGateway;
   reports: Pick<XieheApiSdk['reports'], 'list' | 'generate'>;
   preview: (imageId: number) => Promise<ImagePreview>;
   upload: (

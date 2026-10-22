@@ -1,1 +1,1 @@
-export { TeamsScreen as default } from '../../../features/profile';
+export { TeamsScreen as default } from '../../../features/teams';
