@@ -198,11 +198,7 @@ export function applyPointBindings<T extends BindingMeasurement>(
   );
   if (affectedGroups.length === 0) return measurements;
 
-  const updated = measurements.map(measurement => ({
-    ...measurement,
-    points: measurement.points.map(point => ({ ...point })),
-  })) as T[];
-
+  const affectedPoints = new Map<string, Set<number>>();
   affectedGroups.forEach(group => {
     group.members.forEach(member => {
       if (
@@ -211,14 +207,23 @@ export function applyPointBindings<T extends BindingMeasurement>(
       ) {
         return;
       }
-      const target = updated.find(
-        measurement => measurement.id === member.annotationId
-      );
-      if (target && member.pointIndex < target.points.length) {
-        target.points[member.pointIndex] = { x: newX, y: newY };
-      }
+      const indices =
+        affectedPoints.get(member.annotationId) ?? new Set<number>();
+      indices.add(member.pointIndex);
+      affectedPoints.set(member.annotationId, indices);
     });
   });
-
-  return updated;
+  // 绑定传播只复制实际变化的点；未参与本次编辑的几何保持引用稳定。
+  return measurements.map(measurement => {
+    const indices = affectedPoints.get(measurement.id);
+    if (!indices) return measurement;
+    let changed = false;
+    const points = measurement.points.map((point, index) => {
+      if (!indices.has(index) || (point.x === newX && point.y === newY))
+        return point;
+      changed = true;
+      return { x: newX, y: newY };
+    });
+    return changed ? { ...measurement, points } : measurement;
+  });
 }

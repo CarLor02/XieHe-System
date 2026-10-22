@@ -21,9 +21,9 @@ import type {
 } from '../../../shared/domain/contracts';
 
 import {
-  buildBoundMeasurementPointsForMeasurement,
   getAutoDeriveMeasurementKeypointBindingRules,
   getMeasurementKeypointBindingRuleForMeasurement,
+  getMeasurementRequiredKeypointIds,
 } from '../../domain';
 import {
   isBoundAvtMeasurement,
@@ -123,6 +123,31 @@ export function deriveKeypointMeasurements({
             calculationContext
           ),
         }));
+  return [
+    ...deriveNonCobbMeasurements({
+      keypoints,
+      examType,
+      calculationContext,
+      previousMeasurements,
+      calculator,
+    }),
+    ...autoCobbMeasurements,
+  ];
+}
+
+function deriveNonCobbMeasurements({
+  keypoints,
+  examType,
+  calculationContext,
+  previousMeasurements,
+  calculator,
+}: {
+  keypoints: KeypointAnnotation[];
+  examType: string;
+  calculationContext: CalculationContext;
+  previousMeasurements: readonly MeasurementData[];
+  calculator: MeasurementValueCalculator;
+}): MeasurementData[] {
   const autoDeriveRules =
     getAutoDeriveMeasurementKeypointBindingRules(examType);
   const fixedMeasurements = deriveFixedMeasurements({
@@ -146,7 +171,7 @@ export function deriveKeypointMeasurements({
     [...fixedMeasurements, ...pelvicMeasurements]
   );
 
-  return [...orderedMeasurements, ...autoCobbMeasurements];
+  return orderedMeasurements;
 }
 
 function getDerivedCandidateKey(measurement: MeasurementData): string {
@@ -342,13 +367,12 @@ export function deriveInitialMeasurementsFromKeypoints({
 export function recalculateExistingMeasurementsFromKeypoints({
   previousMeasurements,
   keypoints,
-  cfhAnnotation,
   examType,
   isLateralView,
   calculationContext,
   aiMeasurementIds,
   calculator,
-  onDerivationError,
+  changedKeypointIds,
 }: {
   previousMeasurements: MeasurementData[];
   keypoints: KeypointAnnotation[];
@@ -359,20 +383,43 @@ export function recalculateExistingMeasurementsFromKeypoints({
   aiMeasurementIds: Set<string>;
   calculator: MeasurementValueCalculator;
   onDerivationError?: (error: unknown) => void;
+  /** 仅关键点坐标变化且计算上下文未变时提供；省略仍执行完整同步。 */
+  changedKeypointIds?: ReadonlySet<string>;
 }): MeasurementData[] {
-  const derivedCandidates = deriveKeypointMeasurements({
-    keypoints,
-    cfhAnnotation,
-    examType,
-    calculationContext,
-    previousMeasurements,
-    calculator,
-    onDerivationError,
-  }).filter(measurement => !isCobbMeasurement(measurement));
-  const candidateMaps = buildDerivedCandidateMaps(derivedCandidates);
+  // 常规绑定可直接重建。只有旧派生项/缺失 metadata 才需要候选，移动中不派生全局 Cobb。
+  let candidateMaps: ReturnType<typeof buildDerivedCandidateMaps> | undefined;
+  const candidates = () =>
+    (candidateMaps ??= buildDerivedCandidateMaps(
+      deriveNonCobbMeasurements({
+        keypoints,
+        examType,
+        calculationContext,
+        previousMeasurements,
+        calculator,
+      })
+    ));
+  const keypointsById = new Map(
+    keypoints.map(keypoint => [keypoint.id, keypoint])
+  );
 
   const recalculated = previousMeasurements
     .map(measurement => {
+      if (
+        changedKeypointIds &&
+        (measurement.keypointSynced || isDerivedCobbMeasurement(measurement))
+      ) {
+        const dependencies = getMeasurementRequiredKeypointIds(
+          measurement,
+          examType
+        );
+        if (
+          dependencies.length &&
+          dependencies.every(
+            id => keypointsById.has(id) && !changedKeypointIds.has(id)
+          )
+        )
+          return measurement;
+      }
       if (isDerivedCobbMeasurement(measurement)) {
         return createBoundCobbMeasurement({
           measurement,
@@ -418,9 +465,9 @@ export function recalculateExistingMeasurementsFromKeypoints({
       const bindingRule =
         getMeasurementKeypointBindingRuleForMeasurement(measurement);
       if (bindingRule) {
-        const points = buildBoundMeasurementPointsForMeasurement(
-          measurement,
-          keypoints
+        const points = bindingRule.buildMeasurementPoints(
+          keypointsById,
+          measurement.points
         );
         if (!points) {
           return measurement.keypointSynced === true ||
@@ -440,15 +487,17 @@ export function recalculateExistingMeasurementsFromKeypoints({
           keypointSynced: true,
           pelvicMetadata:
             measurement.pelvicMetadata ??
-            candidateMaps.byType.get(bindingRule.typeId)?.pelvicMetadata,
+            (DYNAMIC_PELVIC_RULE_IDS.has(bindingRule.typeId)
+              ? candidates().byType.get(bindingRule.typeId)?.pelvicMetadata
+              : undefined),
         };
       }
 
       if (isKeypointDrivenUniqueMeasurement(measurement, aiMeasurementIds)) {
         if (isCobbMeasurement(measurement)) return null;
         const candidate =
-          candidateMaps.byId.get(measurement.id) ??
-          candidateMaps.byType.get(getDerivedCandidateKey(measurement));
+          candidates().byId.get(measurement.id) ??
+          candidates().byType.get(getDerivedCandidateKey(measurement));
         return candidate
           ? recalculateDerivedCandidateMeasurement({
               measurement,
@@ -465,7 +514,33 @@ export function recalculateExistingMeasurementsFromKeypoints({
       (measurement): measurement is MeasurementData => measurement !== null
     );
 
-  return filterUniqueAnnotationDuplicates(recalculated);
+  const previousById = new Map(
+    previousMeasurements.map(item => [item.id, item])
+  );
+  return filterUniqueAnnotationDuplicates(recalculated).map(measurement => {
+    const before = previousById.get(measurement.id);
+    if (!before || before === measurement) return measurement;
+    const samePoints =
+      before.points.length === measurement.points.length &&
+      before.points.every(
+        (point, i) =>
+          point.x === measurement.points[i].x &&
+          point.y === measurement.points[i].y
+      );
+    if (!samePoints) return measurement;
+    const keys = Object.keys({
+      ...before,
+      ...measurement,
+    }) as (keyof MeasurementData)[];
+    const unchanged = keys.every(
+      key =>
+        key === 'points' ||
+        before[key] === measurement[key] ||
+        ((key === 'pelvicMetadata' || key === 'avtMetadata') &&
+          JSON.stringify(before[key]) === JSON.stringify(measurement[key]))
+    );
+    return unchanged ? before : { ...measurement, points: before.points };
+  });
 }
 
 export function buildDerivedMeasurementsFromLayer({

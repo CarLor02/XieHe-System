@@ -25,25 +25,37 @@ export function constrainDraggedMeasurementPoint(input: {
   pointIndex: number;
   requestedPoint: Point;
 }): Point {
-  const { measurement, pointIndex, requestedPoint } = input;
+  const constraint = getMeasurementPointDragConstraint(
+    input.measurement,
+    input.pointIndex
+  );
+  return {
+    x: constraint.x ?? input.requestedPoint.x,
+    y: constraint.y ?? input.requestedPoint.y,
+  };
+}
+
+/** 可序列化的坐标约束，供各平台的即时控制点预览复用。 */
+export function getMeasurementPointDragConstraint(
+  measurement: MeasurementData,
+  pointIndex: number
+): Partial<Point> {
   const typeId = getAnnotationTypeId(measurement.type);
   const pairedPoint = measurement.points[pointIndex === 0 ? 1 : 0];
 
   if (typeId === 'aux-horizontal-line' && pairedPoint) {
-    return { x: requestedPoint.x, y: pairedPoint.y };
+    return { y: pairedPoint.y };
   }
   if (typeId === 'aux-vertical-line' && pairedPoint) {
-    return { x: pairedPoint.x, y: requestedPoint.y };
+    return { x: pairedPoint.x };
   }
 
   // TTS 只有躯干参考线 0-1 保持水平；骶骨参考线 2-3 必须保留原始倾斜。
   if (typeId === 'tts' && (pointIndex === 0 || pointIndex === 1)) {
-    return pairedPoint
-      ? { x: requestedPoint.x, y: pairedPoint.y }
-      : requestedPoint;
+    return pairedPoint ? { y: pairedPoint.y } : {};
   }
 
-  return requestedPoint;
+  return {};
 }
 
 export function planWholeMeasurementDrag(

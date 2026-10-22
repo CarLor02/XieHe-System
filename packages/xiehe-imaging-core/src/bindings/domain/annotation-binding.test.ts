@@ -201,16 +201,15 @@ describe('manual annotation bindings', () => {
       ],
     };
 
-    const updated = applyPointBindings(
-      [pi, pt],
-      'pi-1',
-      0,
-      100,
-      120,
-      bindings
-    );
+    const updated = applyPointBindings([pi, pt], 'pi-1', 0, 100, 120, bindings);
 
     expect(updated[1].points[0]).toEqual({ x: 100, y: 120 });
     expect(updated[1].points[1]).toEqual({ x: 20, y: 20 });
+    expect(updated[0]).toBe(pi);
+    expect(updated[1].points[1]).toBe(pt.points[1]);
+    expect(pt.points[0]).toEqual({ x: 10, y: 10 });
+    const same = applyPointBindings(updated, 'pi-1', 0, 100, 120, bindings);
+    expect(same[0]).toBe(updated[0]);
+    expect(same[1]).toBe(updated[1]);
   });
 });

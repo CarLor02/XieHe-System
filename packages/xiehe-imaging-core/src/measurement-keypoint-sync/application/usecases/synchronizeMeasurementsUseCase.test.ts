@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
 
 import { getApKeypointGroups } from '../../../keypoints';
 import {
@@ -40,6 +40,56 @@ const calculator: MeasurementValueCalculator = {
     formatOutcome(calculateMeasurementResults(measurement, context)) ||
     measurement.value,
 };
+
+it('incremental keypoint synchronization matches full synchronization and preserves unrelated measurements', () => {
+  const keypoints = [
+    apCorner('T1-1', 100, 100),
+    apCorner('T1-2', 200, 105),
+    apCorner('CL', 80, 50),
+    apCorner('CR', 220, 60),
+  ];
+  const input = {
+    keypoints,
+    cfhAnnotation: null,
+    examType: '正位X光片',
+    isLateralView: false,
+    calculationContext,
+    calculator,
+    aiMeasurementIds: new Set<string>(),
+  };
+  const previousMeasurements = deriveKeypointMeasurements(input);
+  const nextKeypoints = keypoints.map(k =>
+    k.id === 'CL' ? { ...k, point: { x: 90, y: 75 } } : k
+  );
+  const counted = {
+    calculateType: vi.fn(calculator.calculateType),
+    calculateMeasurement: vi.fn(calculator.calculateMeasurement),
+  };
+  const full = recalculateExistingMeasurementsFromKeypoints({
+    ...input,
+    previousMeasurements,
+    keypoints: nextKeypoints,
+  });
+  const incremental = recalculateExistingMeasurementsFromKeypoints({
+    ...input,
+    previousMeasurements,
+    keypoints: nextKeypoints,
+    changedKeypointIds: new Set(['CL']),
+    calculator: counted,
+  });
+  expect(incremental).toEqual(full);
+  expect(incremental.find(m => m.type === 't1-tilt')).toBe(
+    previousMeasurements.find(m => m.type === 't1-tilt')
+  );
+  expect(counted.calculateType).toHaveBeenCalledTimes(1);
+  const removed = recalculateExistingMeasurementsFromKeypoints({
+    ...input,
+    previousMeasurements,
+    keypoints: nextKeypoints.filter(k => k.id !== 'CL'),
+    changedKeypointIds: new Set(['CL']),
+  });
+  expect(removed.some(m => m.type === 'ca')).toBe(false);
+});
 
 function apCorner(id: string, x: number, y: number): KeypointAnnotation {
   return {
@@ -887,10 +937,7 @@ it('derives lateral vertebra measurements from keypoint label order', () => {
 
 it('derives T1 Tilt from its two-point minimum dependency', () => {
   const measurements = deriveKeypointMeasurements({
-    keypoints: [
-      apCorner('T1-1', 100, 100),
-      apCorner('T1-2', 200, 110),
-    ],
+    keypoints: [apCorner('T1-1', 100, 100), apCorner('T1-2', 200, 110)],
     cfhAnnotation: null,
     examType: '正位X光片',
     calculationContext,
@@ -965,10 +1012,7 @@ it('derives PO and CSS with stable domain types from their minimum points', () =
 
 it('derives T1 Slope from its two-point minimum dependency', () => {
   const measurements = deriveKeypointMeasurements({
-    keypoints: [
-      apCorner('T1-1', 10, 10),
-      apCorner('T1-2', 30, 8),
-    ],
+    keypoints: [apCorner('T1-1', 10, 10), apCorner('T1-2', 30, 8)],
     cfhAnnotation: null,
     examType: '侧位X光片',
     calculationContext,
