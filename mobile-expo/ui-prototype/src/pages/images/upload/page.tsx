@@ -59,7 +59,7 @@ export default function ImageUpload() {
       input.accept = 'image/*';
       input.removeAttribute('capture');
     } else {
-      input.accept = '.dcm,.dicom,.png,.jpg,.jpeg';
+      input.accept = '.png,.jpg,.jpeg,.tif,.tiff';
       input.removeAttribute('capture');
     }
     input.click();

@@ -160,7 +160,7 @@ export default function ImagesPage() {
                   <span>标注分析</span>
                   <i className="ri-arrow-right-line text-xs opacity-70"></i>
                 </button>
-                <ToolTooltip tooltip={'下载影像\n将原始 DICOM 影像下载到本地设备'}>
+                <ToolTooltip tooltip={'下载影像\n将原始影像下载到本地设备'}>
                   <button
                     onClick={() => showToast(`已开始下载 ${image.fileName}`)}
                     className="w-11 h-11 bg-slate-50 text-slate-400 rounded-2xl hover:bg-slate-100 hover:text-slate-600 transition-all active:scale-95 flex items-center justify-center border border-slate-100"

@@ -34,7 +34,7 @@ export const imagesData = [
   },
   {
     id: 'IMG003',
-    fileName: '20240115_spine_left_bend.dcm',
+    fileName: '20240115_spine_left_bend.png',
     patientName: '张**',
     patientId: 'P20240115003',
     checkType: '左侧曲位',
@@ -44,7 +44,7 @@ export const imagesData = [
   },
   {
     id: 'IMG004',
-    fileName: '20240114_spine_right_bend.dcm',
+    fileName: '20240114_spine_right_bend.png',
     patientName: '刘**',
     patientId: 'P20240114008',
     checkType: '右侧曲位',
@@ -54,7 +54,7 @@ export const imagesData = [
   },
   {
     id: 'IMG005',
-    fileName: '20240114_spine_frontal3.dcm',
+    fileName: '20240114_spine_frontal3.png',
     patientName: '陈**',
     patientId: 'P20240114007',
     checkType: '正面',
@@ -64,7 +64,7 @@ export const imagesData = [
   },
   {
     id: 'IMG006',
-    fileName: '20240113_spine_frontal2.dcm',
+    fileName: '20240113_spine_frontal2.png',
     patientName: '赵**',
     patientId: 'P20240113015',
     checkType: '正面',
