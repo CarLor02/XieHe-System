@@ -2,6 +2,7 @@ import {
   createStellarmeshHttp,
   createHttpClientAdapter,
 } from '@xiehe/api-client/stellarmesh';
+import { uploadAvatar } from '../features/profile/application/uploadAvatar';
 import type { MobileServices } from './services';
 import { uploadImage } from '../features/imaging/usecases/uploadImage';
 import type { ExpoApiInfrastructure } from '../infrastructure/http/createExpoApiInfrastructure';
@@ -14,6 +15,16 @@ export function createMobileServices(
   const sdk = api.apiSdk;
   const storage = createHttpClientAdapter(createStellarmeshHttp({ raw: true }));
   return {
+    profile: {
+      get: sdk.auth.getSessionUser,
+      update: sdk.auth.updateSessionUser,
+      changePassword: sdk.auth.changePassword,
+      uploadAvatar: file => uploadAvatar(sdk.auth, storage, file),
+      async removeAvatar() {
+        await sdk.auth.deleteAvatar();
+        return sdk.auth.getSessionUser();
+      },
+    },
     imageEditor: createImageEditorGateway(sdk.imaging, sdk.reports),
     patients: sdk.patients,
     imaging: sdk.imaging,

@@ -1,3 +1,4 @@
+import { AvatarEditor } from './AvatarEditor';
 import { useState } from 'react';
 import { getApiErrorMessage } from '@xiehe/api-client';
 import { Text } from 'react-native';
@@ -15,7 +16,7 @@ import {
 import { colors } from '../../../shared/theme';
 
 export function ProfileInfoScreen() {
-  const { user, api } = useWorkspace();
+  const { user, services } = useWorkspace();
   const { updateUser } = useApp();
   const [name, setName] = useState(user.real_name || user.full_name || '');
   const [phone, setPhone] = useState(user.phone || '');
@@ -29,13 +30,13 @@ export function ProfileInfoScreen() {
     setError('');
     setSaved(false);
     try {
-      await api.apiSdk.auth.updateCurrentUser({
+      await services.profile.update({
         real_name: name.trim(),
         phone: phone.trim(),
         title: title.trim(),
         position: position.trim(),
       });
-      updateUser(await api.apiSdk.auth.getSessionUser());
+      updateUser(await services.profile.get());
       setSaved(true);
     } catch (cause) {
       setError(getApiErrorMessage(cause));
@@ -47,6 +48,7 @@ export function ProfileInfoScreen() {
     <Screen>
       <Header title="个人信息" subtitle="与 Web 端同步的账号资料" back />
       <FormContent>
+        <AvatarEditor />
         <Card>
           <InfoRow label="账号" value={user.username} />
           <InfoRow label="邮箱" value={user.email} />

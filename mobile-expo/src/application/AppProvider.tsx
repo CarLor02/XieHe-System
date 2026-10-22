@@ -132,7 +132,12 @@ export function AppProvider({ children }: PropsWithChildren) {
     setSession(null);
   };
   const updateUser = (user: SessionUser) =>
-    setSession(current => (current ? { ...current, user } : current));
+    // A profile request belongs to the session that rendered its callback.
+    setSession(current =>
+      current && current.api === session?.api && current.user.id === user.id
+        ? { ...current, user }
+        : current
+    );
   return (
     <AppContext.Provider
       value={{

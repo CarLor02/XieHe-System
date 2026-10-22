@@ -1,5 +1,6 @@
-import type { TeamsGateway } from '../features/teams';
 import type { ReportsGateway } from '../features/reports';
+import type { TeamsGateway } from '../features/teams';
+import type { ProfileGateway } from '../features/profile';
 import type { XieheApiSdk } from '@xiehe/api-sdk';
 import type { MobileUploadFile } from '../features/imaging/domain/upload';
 import type { ImageEditorGateway } from '../features/image-editor';
@@ -11,8 +12,12 @@ export interface ImagePreview {
 
 // Keep the mobile port limited to supported flows; DTOs and endpoints remain in the shared SDK.
 export interface MobileServices {
+  profile: ProfileGateway;
   imageEditor: ImageEditorGateway;
-  patients: Pick<XieheApiSdk['patients'], 'list' | 'get' | 'create' | 'update' | 'delete'>;
+  patients: Pick<
+    XieheApiSdk['patients'],
+    'list' | 'get' | 'create' | 'update' | 'delete'
+  >;
   imaging: Pick<
     XieheApiSdk['imaging'],
     | 'list'

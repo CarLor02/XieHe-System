@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { useState } from 'react';
 import { router } from 'expo-router';
 import {
@@ -112,13 +113,21 @@ export function ProfileScreen() {
       >
         <Card style={{ padding: 20 }}>
           <View style={[layout.row, { gap: 16 }]}>
-            <GradientIcon
-              name="person-outline"
-              colors={['#A78BFA', '#A855F7']}
-              size={64}
-              iconSize={30}
-              radius={16}
-            />
+            {user.avatar_url ? (
+              <Image
+                source={{ uri: user.avatar_url }}
+                style={{ width: 64, height: 64, borderRadius: 16 }}
+                cachePolicy="memory"
+              />
+            ) : (
+              <GradientIcon
+                name="person-outline"
+                colors={['#A78BFA', '#A855F7']}
+                size={64}
+                iconSize={30}
+                radius={16}
+              />
+            )}
             <View style={[layout.flex, { gap: 8, minWidth: 0 }]}>
               <Text style={styles.name} numberOfLines={1}>
                 {user.real_name || user.full_name || user.username}

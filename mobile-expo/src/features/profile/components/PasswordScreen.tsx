@@ -14,7 +14,7 @@ import {
 import { colors } from '../../../shared/theme';
 
 export function PasswordScreen() {
-  const { api } = useWorkspace();
+  const { services } = useWorkspace();
   const { logout } = useApp();
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
@@ -39,7 +39,7 @@ export function PasswordScreen() {
     setBusy(true);
     try {
       if (!changed) {
-        await api.apiSdk.auth.changePassword({
+        await services.profile.changePassword({
           current_password: current,
           new_password: next,
           confirm_password: confirm,
