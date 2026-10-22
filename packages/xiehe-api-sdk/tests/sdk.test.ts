@@ -74,7 +74,8 @@ beforeEach(async () => {
       data = { access_token: 'a', refresh_token: 'r', user: {} };
     if (
       request.url === '/api/v1/patients/list' ||
-      request.url === '/api/v1/image-files/list'
+      request.url === '/api/v1/image-files/list' ||
+      request.url === '/api/v1/image-files/annotation-history/list'
     )
       data = {
         items: [{ id: 7 }],
@@ -283,5 +284,87 @@ describe('shared API declarations over the published SDK', () => {
     expect(declared.length).toBeGreaterThan(60);
     for (const path of declared)
       expect(contract.paths[path]?.post, path).toBeDefined();
+  });
+});
+
+describe('mobile management contract coverage', () => {
+  it('uses generated report CRUD declarations and preserves cleared fields', async () => {
+    await sdk.reports.get(8);
+    await sdk.reports.create({
+      patient_id: 7,
+      report_title: '检查报告',
+      priority: 'normal',
+      findings: '内容',
+    });
+    await sdk.reports.update(8, { findings: '', recommendations: null });
+    await sdk.reports.delete(8);
+    expect(
+      requests.map(request => [
+        request.method,
+        request.path,
+        request.authorization,
+        request.body,
+      ])
+    ).toEqual([
+      ['POST', '/api/v1/reports/get', 'Bearer api-token', { report_id: 8 }],
+      [
+        'POST',
+        '/api/v1/reports/create',
+        'Bearer api-token',
+        {
+          patient_id: 7,
+          report_title: '检查报告',
+          priority: 'normal',
+          findings: '内容',
+        },
+      ],
+      [
+        'POST',
+        '/api/v1/reports/update',
+        'Bearer api-token',
+        { report_id: 8, findings: '', recommendations: null },
+      ],
+      ['POST', '/api/v1/reports/delete', 'Bearer api-token', { report_id: 8 }],
+    ]);
+  });
+  it('reads paginated annotation history and the requested exact version', async () => {
+    expect(await sdk.imaging.listAnnotationHistory(7, 2, 5)).toMatchObject({
+      total: 6,
+      totalPages: 2,
+      items: [{ id: 7 }],
+    });
+    await sdk.imaging.getAnnotationHistory(7, 3);
+    expect(requests.map(request => request.body)).toEqual([
+      { file_id: 7, page: 2, page_size: 5 },
+      { file_id: 7, version: 3 },
+    ]);
+  });
+  it('routes team decisions with explicit team, request, user and invitation identities', async () => {
+    await sdk.teams.apply(3, '申请');
+    await sdk.teams.cancelJoinRequest(3, 10);
+    await sdk.teams.reviewJoinRequest(3, 11, 'approve');
+    await sdk.teams.updateMemberRole(3, 7, 'MEMBER');
+    await sdk.teams.removeMember(3, 9);
+    await sdk.teams.respondToInvitation(15, true);
+    expect(requests.map(request => [request.path, request.body])).toEqual([
+      ['/api/v1/permissions/teams/apply', { team_id: 3, message: '申请' }],
+      [
+        '/api/v1/permissions/teams/join-requests/cancel',
+        { team_id: 3, request_id: 10 },
+      ],
+      [
+        '/api/v1/permissions/teams/join-requests/review',
+        { team_id: 3, request_id: 11, decision: 'approve' },
+      ],
+      [
+        '/api/v1/permissions/teams/members/update-role',
+        { team_id: 3, user_id: 7, role: 'MEMBER' },
+      ],
+      ['/api/v1/permissions/teams/members/remove', { team_id: 3, user_id: 9 }],
+      [
+        '/api/v1/permissions/invitations/respond',
+        { invitation_id: 15, accept: true },
+      ],
+    ]);
   });
 });

@@ -80,6 +80,16 @@ export function createImagingClient(http: HttpApi, client: HttpClient) {
       };
     },
     get: (file_id: number) => imagingApi.requestGetImageFileDetail({ file_id }),
+    listAnnotationHistory: async (file_id: number, page = 1, page_size = 20) =>
+      toPaginatedResult(
+        await imagingApi.requestListAnnotationHistory({
+          file_id,
+          page,
+          page_size,
+        })
+      ),
+    getAnnotationHistory: (file_id: number, version: number) =>
+      imagingApi.requestGetAnnotationHistoryVersion({ file_id, version }),
     getNavigationIds: async () =>
       (await imagingApi.requestListNavigationIds({})).ids,
     async getAnnotations(ids: number[]) {
