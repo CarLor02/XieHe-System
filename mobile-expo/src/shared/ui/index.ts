@@ -19,5 +19,13 @@ export { Pagination } from './pagination';
 export { Screen } from './screen';
 export { SearchField } from './search-field';
 export { SectionTitle } from './section-title';
+export { SelectionList } from './selection-list';
+export { SelectionSheet } from './selection-sheet';
 export { Tag } from './tag';
 export type { IconName } from './icon';
+export type {
+  SelectionListProps,
+  SelectionOption,
+  SelectionValue,
+} from './selection-list';
+export type { SelectionSheetProps } from './selection-sheet';

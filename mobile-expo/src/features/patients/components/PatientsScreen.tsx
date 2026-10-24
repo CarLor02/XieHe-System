@@ -4,8 +4,6 @@ import { router } from 'expo-router';
 import { useWorkspace } from '../../../application/AppProvider';
 import { usePatientList } from '../application/usePatientList';
 import {
-  Choice,
-  ChoiceSheet,
   Content,
   EmptyState,
   ErrorState,
@@ -15,10 +13,12 @@ import {
   Pagination,
   Screen,
   SearchField,
+  SelectionSheet,
 } from '../../../shared/ui';
 import { colors } from '../../../shared/theme';
 import { FilterChip } from '../../../shared/ui/filter-chip';
 import { PatientCard } from './PatientCard';
+import { genderFilterOptions } from './patientSelectionOptions';
 
 export function PatientsScreen() {
   const { services } = useWorkspace();
@@ -104,23 +104,14 @@ export function PatientsScreen() {
           />
         )}
       </Content>
-      <ChoiceSheet
+      <SelectionSheet
         open={filterOpen}
         title="选择性别"
+        options={genderFilterOptions}
+        value={gender}
+        onChange={changeGender}
         onClose={() => setFilterOpen(false)}
-      >
-        {['', '男', '女', '未知'].map(item => (
-          <Choice
-            key={item}
-            title={item || '全部性别'}
-            selected={gender === item}
-            onPress={() => {
-              changeGender(item);
-              setFilterOpen(false);
-            }}
-          />
-        ))}
-      </ChoiceSheet>
+      />
     </Screen>
   );
 }

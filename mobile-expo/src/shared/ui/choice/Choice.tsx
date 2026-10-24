@@ -6,22 +6,28 @@ export function Choice({
   title,
   selected,
   onPress,
+  disabled = false,
 }: {
   title: string;
   selected?: boolean;
   onPress: () => void;
+  disabled?: boolean;
 }) {
+  // ARIA 状态同时适配原生端和 Expo Web，让浏览器也能读取选中状态。
   return (
     <Pressable
       accessibilityRole="radio"
-      accessibilityState={{ checked: !!selected }}
+      aria-checked={!!selected}
+      aria-disabled={disabled}
       accessibilityLabel={title}
+      disabled={disabled}
       style={[
         styles.choice,
         selected && {
           backgroundColor: colors.primaryLight,
           borderColor: '#D8C5FA',
         },
+        disabled && { opacity: 0.5 },
       ]}
       onPress={onPress}
     >

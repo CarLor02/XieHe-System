@@ -1,14 +1,12 @@
 import { useCallback, useState } from 'react';
 import { RefreshControl, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { EXAM_TYPES } from '@xiehe/imaging-core';
 import type { ImageFileStatus } from '@xiehe/api-contracts';
 import { useWorkspace } from '../../../application/AppProvider';
 import { useResource } from '../../../shared/hooks/useResource';
 import { useDebouncedValue } from '../../../shared/hooks/useDebouncedValue';
 import {
   Button,
-  Choice,
   ChoiceSheet,
   Content,
   EmptyState,
@@ -19,6 +17,7 @@ import {
   Pagination,
   Screen,
   SearchField,
+  SelectionSheet,
 } from '../../../shared/ui';
 import { colors, layout } from '../../../shared/theme';
 import { imageStatusLabel } from '../domain/presentation';
@@ -26,6 +25,10 @@ import { FilterChip } from '../../../shared/ui/filter-chip';
 import { useImageThumbnails } from '../application/useImageThumbnails';
 import { useImageActions } from '../application/useImageActions';
 import { ImageCard } from './ImageCard';
+import {
+  examTypeFilterOptions,
+  imageStatusFilterOptions,
+} from './imageSelectionOptions';
 
 export function ImagesScreen({
   patientId,
@@ -203,43 +206,28 @@ export function ImagesScreen({
           onPress={actions.closeDelete}
         />
       </ChoiceSheet>
-      <ChoiceSheet
-        title={sheet === 'type' ? '检查类型' : '处理状态'}
-        open={!!sheet}
+      <SelectionSheet
+        title="检查类型"
+        open={sheet === 'type'}
+        options={examTypeFilterOptions}
+        value={type}
+        onChange={value => {
+          setType(value);
+          setPage(1);
+        }}
         onClose={() => setSheet(null)}
-      >
-        {sheet === 'type'
-          ? ['', ...EXAM_TYPES].map(value => (
-              <Choice
-                key={value}
-                title={value || '全部类型'}
-                selected={value === type}
-                onPress={() => {
-                  setType(value);
-                  setPage(1);
-                  setSheet(null);
-                }}
-              />
-            ))
-          : [undefined, 'UPLOADED', 'PROCESSING', 'PROCESSED', 'FAILED'].map(
-              value => (
-                <Choice
-                  key={value || 'all'}
-                  title={
-                    value
-                      ? imageStatusLabel(value as ImageFileStatus)
-                      : '全部状态'
-                  }
-                  selected={status === value}
-                  onPress={() => {
-                    setStatus(value as ImageFileStatus | undefined);
-                    setPage(1);
-                    setSheet(null);
-                  }}
-                />
-              )
-            )}
-      </ChoiceSheet>
+      />
+      <SelectionSheet
+        title="处理状态"
+        open={sheet === 'status'}
+        options={imageStatusFilterOptions}
+        value={status}
+        onChange={value => {
+          setStatus(value);
+          setPage(1);
+        }}
+        onClose={() => setSheet(null)}
+      />
     </Screen>
   );
 }

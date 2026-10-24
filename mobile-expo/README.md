@@ -144,6 +144,13 @@ ui-prototype/             # 独立 Vite HTML 原型，不参与 Expo 编译和�
 公共组件之间通过同级组件的目录入口依赖，避免反向导入根入口形成循环依赖。
 患者、影像等业务查询和状态编排继续留在所属 feature，公共 UI 不直接依赖业务服务。
 
+单选选项统一使用 `SelectionList`，通过 `shared/ui/selection-list` 目录入口导入；
+完整的底部单选弹层使用 `SelectionSheet`，通过 `shared/ui/selection-sheet` 导入。
+两者接收 `options`、`value` 和 `onChange`，由调用方持有选中值。
+弹层在选择后通知调用方并关闭；检查类型、处理状态、
+性别和报告状态的选项定义、查询与分页重置继续留在所属业务模块。表单复用单选列表，
+保留内嵌布局；整个列表或单个选项可禁用，“全部”选项可使用空字符串或 `undefined`。
+
 HTTP DTO 和 endpoint 继续归属于共享 contracts / SDK；患者查询展示、登录校验、标注
 解码及分片上传协调复用已有公共包。页面不得自行创建 Axios 实例或引入 HTML 原型代码。
 

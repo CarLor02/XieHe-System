@@ -9,16 +9,17 @@ import { useResource } from '../../../shared/hooks/useResource';
 import {
   Button,
   Card,
-  Choice,
   ErrorState,
   Field,
   FormContent,
   Header,
   LoadingState,
   Screen,
+  SelectionList,
 } from '../../../shared/ui';
 import { colors, layout } from '../../../shared/theme';
 import { toPatientRequest, type PatientFormValue } from '../domain/patientForm';
+import { genderOptions } from './patientSelectionOptions';
 
 function PatientForm({ patient }: { patient?: Patient }) {
   const { services } = useWorkspace();
@@ -78,18 +79,14 @@ function PatientForm({ patient }: { patient?: Patient }) {
         />
         <View>
           <Text style={layout.label}>性别 *</Text>
-          <View style={{ gap: 8 }}>
-            {['男', '女', '未知'].map(item => (
-              <Choice
-                key={item}
-                title={item}
-                selected={form.gender === item}
-                onPress={() => {
-                  if (!busy) change('gender', item);
-                }}
-              />
-            ))}
-          </View>
+          <SelectionList
+            accessibilityLabel="性别"
+            options={genderOptions}
+            value={form.gender}
+            onChange={value => change('gender', value)}
+            disabled={busy}
+            style={{ gap: 8 }}
+          />
         </View>
         <Field
           label="出生日期"

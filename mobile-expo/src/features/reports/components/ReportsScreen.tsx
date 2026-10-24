@@ -4,8 +4,6 @@ import { Pressable, RefreshControl, Text, View } from 'react-native';
 import { useWorkspace } from '../../../application/AppProvider';
 import {
   Card,
-  Choice,
-  ChoiceSheet,
   Content,
   EmptyState,
   ErrorState,
@@ -16,6 +14,7 @@ import {
   Pagination,
   Screen,
   SearchField,
+  SelectionSheet,
   Tag,
 } from '../../../shared/ui';
 import { FilterChip } from '../../../shared/ui/filter-chip';
@@ -25,6 +24,11 @@ import {
   reportStatusLabel,
   useReports,
 } from '../application/useReports';
+
+const reportStatusOptions = reportStatuses.map(([value, label]) => ({
+  value,
+  label,
+}));
 
 export function ReportsScreen() {
   const { services } = useWorkspace();
@@ -123,23 +127,14 @@ export function ReportsScreen() {
           />
         )}
       </Content>
-      <ChoiceSheet
+      <SelectionSheet
         open={filterOpen}
         title="报告状态"
+        options={reportStatusOptions}
+        value={reports.status}
+        onChange={reports.filter}
         onClose={() => setFilterOpen(false)}
-      >
-        {reportStatuses.map(([key, label]) => (
-          <Choice
-            key={key}
-            title={label}
-            selected={reports.status === key}
-            onPress={() => {
-              reports.filter(key);
-              setFilterOpen(false);
-            }}
-          />
-        ))}
-      </ChoiceSheet>
+      />
     </Screen>
   );
 }

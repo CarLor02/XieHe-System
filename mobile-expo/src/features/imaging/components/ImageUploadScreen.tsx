@@ -1,11 +1,9 @@
 import { useState } from 'react';
 import { useLocalSearchParams } from 'expo-router';
 import { Platform, Pressable, Text, View } from 'react-native';
-import { EXAM_TYPES } from '@xiehe/imaging-core';
 import {
   Button,
   Card,
-  Choice,
   ChoiceSheet,
   Content,
   Header,
@@ -13,12 +11,14 @@ import {
   Notice,
   Screen,
   SectionTitle,
+  SelectionList,
 } from '../../../shared/ui';
 import { colors, layout } from '../../../shared/theme';
 import { PatientPicker } from '../../patients/selection';
 import { useImageUpload } from '../application/useImageUpload';
 import { formatFileSize } from '../domain/presentation';
 import { TeamPicker } from './TeamPicker';
+import { examTypeOptions } from './imageSelectionOptions';
 
 export function ImageUploadScreen() {
   const params = useLocalSearchParams<{
@@ -107,16 +107,14 @@ export function ImageUploadScreen() {
         </Card>
         <Card style={{ gap: 14 }}>
           <SectionTitle title="检查类型 *" />
-          {EXAM_TYPES.map(type => (
-            <Choice
-              key={type}
-              title={type}
-              selected={type === examType}
-              onPress={() => {
-                if (!upload.busy) setExamType(type);
-              }}
-            />
-          ))}
+          <SelectionList
+            accessibilityLabel="检查类型"
+            options={examTypeOptions}
+            value={examType}
+            onChange={setExamType}
+            disabled={upload.busy}
+            style={{ gap: 14 }}
+          />
         </Card>
         <Card style={{ gap: 16 }}>
           <SectionTitle title="归属信息" />

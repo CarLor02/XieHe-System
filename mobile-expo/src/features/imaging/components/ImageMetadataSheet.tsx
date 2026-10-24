@@ -1,19 +1,19 @@
 import { Text } from 'react-native';
 import type { ImageFileDetail } from '@xiehe/api-contracts';
-import { EXAM_TYPES } from '@xiehe/imaging-core';
 import { useWorkspace } from '../../../application/AppProvider';
 import {
   Button,
-  Choice,
   ChoiceSheet,
   ErrorState,
   Field,
   Notice,
   SectionTitle,
+  SelectionList,
 } from '../../../shared/ui';
 import { layout } from '../../../shared/theme';
 import { useImageMetadata } from '../application/useImageMetadata';
 import { TeamPicker } from './TeamPicker';
+import { examTypeOptions } from './imageSelectionOptions';
 
 export function ImageMetadataSheet({
   image,
@@ -49,16 +49,13 @@ export function ImageMetadataSheet({
       ) : (
         <>
           <SectionTitle title="检查类型" />
-          {EXAM_TYPES.map(type => (
-            <Choice
-              key={type}
-              title={type}
-              selected={form.examType === type}
-              onPress={() => {
-                if (!form.mutation.busy) form.setExamType(type);
-              }}
-            />
-          ))}
+          <SelectionList
+            accessibilityLabel="检查类型"
+            options={examTypeOptions}
+            value={form.examType}
+            onChange={form.setExamType}
+            disabled={form.mutation.busy}
+          />
           <Notice>
             变更检查类型会影响测量工具和点位解释，请先确认当前影像的实际检查类型。
           </Notice>
