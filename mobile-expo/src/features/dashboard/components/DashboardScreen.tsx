@@ -3,7 +3,6 @@ import { router } from 'expo-router';
 import {
   Pressable,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -103,14 +102,11 @@ export function DashboardScreen() {
           {stats.loading && !summary ? (
             <LoadingState />
           ) : (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.stats}
-            >
+            <View style={styles.stats}>
               {cards.map(item => (
                 <Pressable
                   key={item.label}
+                  style={styles.statLink}
                   onPress={() => router.push(item.route)}
                   accessibilityRole="button"
                   accessibilityLabel={`${item.label} ${item.value ?? '未加载'}`}
@@ -134,7 +130,7 @@ export function DashboardScreen() {
                   </LinearGradient>
                 </Pressable>
               ))}
-            </ScrollView>
+            </View>
           )}
         </View>
         <View style={{ gap: 12 }}>
@@ -219,10 +215,10 @@ export function DashboardScreen() {
 
 const styles = StyleSheet.create({
   sectionTitle: { fontSize: 14, fontWeight: '700', color: '#334155' },
-  stats: { gap: 12, paddingBottom: 4 },
+  stats: { flexDirection: 'row', gap: 12, paddingBottom: 4 },
+  statLink: { flex: 1, minWidth: 0 },
   stat: {
     padding: 16,
-    width: 144,
     borderRadius: 16,
     boxShadow: '0 4px 8px rgba(139,92,246,0.14)',
   },
