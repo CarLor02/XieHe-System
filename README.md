@@ -40,7 +40,7 @@ RustFS 1.0.0 的并行部署和样本验证见 [部署说明](docs/deployment/ru
 │   ├── ap (正位, :8001)   # Cobb 角等脊柱正位指标
 │   └── lat (侧位, :8002)      # SVA/PI 等脊柱侧位指标
 ├── communication (可选)           # 扫描机本地 DICOM 文件索引服务
-├── mobile-expo (React Native + Expo) # Android + iOS 移动端
+├── mobile (React Native + Expo) # Android + iOS 移动端
 ├── 数据库层
 │   └── MySQL 8.0+                # 主数据库
 └── 安全层
@@ -88,7 +88,7 @@ XieHe-System/
 │   ├── ap/       # 正位脊柱分析（端口 8001）
 │   ├── lat/          # 侧位脊柱分析（端口 8002）
 │   └── AI_HOST_DEPLOYMENT.md  # 权重下载与本地部署指南
-├── 📁 mobile-expo/       # React Native + Expo 移动端（Android + iOS）
+├── 📁 mobile/       # React Native + Expo 移动端（Android + iOS）
 │   └── ui-prototype/     # 独立 HTML UI 参考原型
 ├── 📁 communication/     # 扫描机端 DICOM 文件索引服务（可选）
 ├── 📁 docs/              # 项目文档
@@ -248,7 +248,7 @@ uv run mypy
 - ✅ **手动标注**: Fabric.js + Konva 画布，关键点拖拽调整
 - ✅ **报告生成**: 可视化报告，指标汇总
 - ✅ **数据统计**: 实时仪表板
-- ✅ **移动端**: React Native + Expo（Android + iOS），[本地真机调试说明](mobile-expo/README.md)
+- ✅ **移动端**: React Native + Expo（Android + iOS），[本地真机调试说明](mobile/README.md)
 
 ## ⚠️ 免责声明
 

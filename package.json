@@ -8,7 +8,7 @@
   },
   "workspaces": [
     "frontend",
-    "mobile-expo",
+    "mobile",
     "packages/*"
   ],
   "scripts": {
@@ -37,8 +37,8 @@
     "lint:web": "npm run lint --workspace medical-imaging-frontend",
     "test:web": "npm run test --workspace medical-imaging-frontend -- --runInBand",
     "build:web": "npm run build --workspace medical-imaging-frontend",
-    "type-check:mobile": "npm run type-check --workspace @xiehe/mobile-expo",
-    "export:mobile": "npm run export --workspace @xiehe/mobile-expo",
+    "type-check:mobile": "npm run type-check --workspace @xiehe/mobile",
+    "export:mobile": "npm run export --workspace @xiehe/mobile --",
     "verify:core": "npm run type-check:core && npm run test:core && npm run type-check:catalog && npm run test:catalog",
     "verify:shared": "npm run type-check:auth-core && npm run test:auth-core && npm run type-check:access-core && npm run test:access-core && npm run type-check:patient-core && npm run test:patient-core && npm run type-check:upload-core && npm run test:upload-core && npm run type-check:dashboard-core && npm run test:dashboard-core && npm run test:shared-boundaries",
     "verify:api": "npm run type-check:api && npm run test:api && npm run type-check:contracts && npm run test:contracts && npm run type-check:sdk && npm run test:sdk",

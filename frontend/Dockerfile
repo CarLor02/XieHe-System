@@ -40,7 +40,7 @@ RUN --mount=type=cache,id=xiehe-frontend-builder-apk,target=/var/cache/apk,shari
 # 使依赖安装层在业务源码变化时仍可复用。
 COPY package.json package-lock.json .npmrc ./
 COPY frontend/package.json ./frontend/package.json
-COPY mobile-expo/package.json ./mobile-expo/package.json
+COPY mobile/package.json ./mobile/package.json
 COPY packages/xiehe-access-core/package.json ./packages/xiehe-access-core/package.json
 COPY packages/xiehe-api-client/package.json ./packages/xiehe-api-client/package.json
 COPY packages/xiehe-api-contracts/package.json ./packages/xiehe-api-contracts/package.json

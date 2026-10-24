@@ -13,7 +13,7 @@ Android 与 iOS 共用一套 React Native 代码，使用 Expo SDK 57、Expo Rou
 npm ci
 
 # 必须从仓库根目录执行
-npm run start --workspace @xiehe/mobile-expo
+npm run start --workspace @xiehe/mobile
 ```
 
 1. 手机安装与 **SDK 57** 匹配的 [Expo Go](https://expo.dev/go?device=true&platform=android&sdkVersion=57)。
@@ -36,7 +36,7 @@ Expo 的 8081 端口只负责本地 bundle 和调试连接。二维码中的 IP 
 ```bash
 adb devices
 adb reverse tcp:8081 tcp:8081
-npm run start:usb --workspace @xiehe/mobile-expo
+npm run start:usb --workspace @xiehe/mobile
 ```
 
 在 Expo Go 打开 `exp://127.0.0.1:8081`。多个设备同时在线时，`adb reverse` 使用
@@ -47,7 +47,7 @@ npm run start:usb --workspace @xiehe/mobile-expo
 ### 服务器与会话
 
 默认地址已配置，无需 `.env`。需要临时切换时，可在登录页展开「连接设置」，填写后端
-根地址（不包含 `/api/v1`），或在 `mobile-expo/.env.local` 中设置：
+根地址（不包含 `/api/v1`），或在 `mobile/.env.local` 中设置：
 
 ```dotenv
 EXPO_PUBLIC_API_URL=https://xiehe.stellarmesh.cn
@@ -87,15 +87,15 @@ Android/iOS 的访问令牌与刷新令牌由 SecureStore 保存，并绑定服�
 跨平台代码已包含 iOS。iOS 原生构建需在安装 Xcode 的 macOS 环境执行：
 
 ```bash
-npm run build:ios --workspace @xiehe/mobile-expo
+npm run build:ios --workspace @xiehe/mobile
 ```
 
 Android 原生开发构建需配置 Android Studio、Java 和对应 SDK，并连接调试设备：
 
 ```bash
-npm run build:android --workspace @xiehe/mobile-expo
+npm run build:android --workspace @xiehe/mobile
 # 安装开发构建后，后续日常启动
-npm run start:dev-client --workspace @xiehe/mobile-expo
+npm run start:dev-client --workspace @xiehe/mobile
 ```
 
 这些命令由 Expo 生成本地 `android/` / `ios/`（已忽略）。日常 Expo Go 调试不需要先构建
@@ -106,19 +106,28 @@ APK，也不需要 EAS 云构建。新增原生依赖或修改原生配置后，
 性能对比使用内置 JS bundle 的 release 包，不依赖 Metro。已生成 `android/` 时，从仓库根目录执行：
 
 ```bash
-cd mobile-expo/android
+cd mobile/android
 ANDROID_HOME="$HOME/Android/Sdk" ./gradlew :app:assembleRelease
 cd ../..
-adb -d install -r mobile-expo/android/app/build/outputs/apk/release/app-release.apk
+adb -d install -r mobile/android/app/build/outputs/apk/release/app-release.apk
 ```
 
 安装后从手机桌面打开「协和脊柱影像」。`install -r` 覆盖安装并保留数据；本地包沿用 Expo
 生成的调试签名，仅用于本机验证。首次生成原生目录并构建、安装也可以继续使用
-`npm run build:android --workspace @xiehe/mobile-expo -- --variant release --no-bundler`。
+`npm run build:android --workspace @xiehe/mobile -- --variant release --no-bundler`。
 
 若 Gradle 下载依赖需要本机 Clash HTTP 代理，可在用户级 `~/.gradle/gradle.properties`
 设置 `systemProp.http.proxyHost` / `systemProp.https.proxyHost` 为 `127.0.0.1`，对应的
 `proxyPort` 为本机端口；代理配置不要写入仓库。
+
+### Android CI
+
+仓库的 `.github/workflows/android-ci.yml` 使用 Node.js 22、JDK 21 和 Android SDK，
+从根锁文件安装 `@xiehe/mobile` 及其依赖，执行类型检查、lint、测试和三端 JS 导出，
+再通过 Expo prebuild 生成 Android 工程并构建 release APK。
+移动端、共享包、workspace 清单、锁文件或工作流变更时会在 main/dev 的推送和 PR 中运行，
+也支持版本标签和手动触发。APK 上传到该次 Actions 运行的 `mobile-android-release-apk`
+制品，保留 14 天，供安装验证；正式签名与 GitHub Release 自动发布后续单独配置。
 
 ## 目录与维护
 
@@ -210,10 +219,10 @@ lint 和 87 项测试；新增回归覆盖手动绑定/关键点联动的分层�
 在仓库根目录运行：
 
 ```bash
-npm run type-check --workspace @xiehe/mobile-expo
-npm run lint --workspace @xiehe/mobile-expo
-npm run test --workspace @xiehe/mobile-expo
-npm run export --workspace @xiehe/mobile-expo
+npm run type-check --workspace @xiehe/mobile
+npm run lint --workspace @xiehe/mobile
+npm run test --workspace @xiehe/mobile
+npm run export --workspace @xiehe/mobile
 ```
 
 `test` 中的 HTTP 集成测试只在 loopback 随机端口启动隔离服务，验证共享 HTTP / SDK
@@ -234,7 +243,7 @@ Android/iOS/Web 导出、移动端 21 项测试、SDK 7 项测试、协议 2 项
 和底部 Tab 正常显示；没有在真机执行新增或删除数据。其余更新页面的原生交互及 iOS
 原生运行仍需继续验收。
 
-Web 预览可以运行 `npm run web --workspace @xiehe/mobile-expo`；生产 API 的 CORS
+Web 预览可以运行 `npm run web --workspace @xiehe/mobile`；生产 API 的 CORS
 是否允许本地浏览器应独立验证，不通过放宽生产 CORS 来替代安卓/ iOS 真机联调。
 
 

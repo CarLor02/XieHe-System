@@ -93,7 +93,7 @@ SDK 自身不负责应用存储和页面生命周期，不能仅以更换 SDK �
   响应格式错误、明确失效、权限 403 及跨会话隔离。
 - `frontend/app/providers-session.test.tsx`：虚拟时钟与窗口事件验证定时/恢复回调在新登录
   后不能退出新会话，临时失败不退出，明确失效仍正常退出。
-- `mobile-expo/src/infrastructure/http/createExpoApiInfrastructure.test.ts`：本机 HTTP 服务、
+- `mobile/src/infrastructure/http/createExpoApiInfrastructure.test.ts`：本机 HTTP 服务、
   真实 SDK 和有序令牌存储验证令牌保存、刷新合并、故障恢复和退出后迟到的响应。
 
 同一组 Web 用例在本轮修复前有 5 个失败，分别覆盖刷新重复、资料 403 和三个旧回调

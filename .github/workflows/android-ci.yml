@@ -1,129 +1,99 @@
-name: Android CI + Release
+name: Android CI
 
 on:
   push:
-    branches: ["dev", "main"]
+    branches: ['dev', 'main']
     tags:
-      - "v*"
+      - 'v*'
     paths:
-      - "mobile/**"
+      - 'mobile/**'
+      - 'packages/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.npmrc'
+      - '.github/workflows/android-ci.yml'
   pull_request:
-    branches: ["dev", "main"]
+    branches: ['dev', 'main']
     paths:
-      - "mobile/**"
+      - 'mobile/**'
+      - 'packages/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.npmrc'
+      - '.github/workflows/android-ci.yml'
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+env:
+  CI: 'true'
+  EXPO_NO_TELEMETRY: '1'
+  CYPRESS_INSTALL_BINARY: '0'
+
 jobs:
   ci:
-    name: CI
+    name: Expo checks and Android APK
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: mobile
+    timeout-minutes: 45
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
-          fetch-depth: 0
+          persist-credentials: false
 
-      - name: Setup JDK 17
-        uses: actions/setup-java@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Setup JDK 21
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '21'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v4
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Build Debug APK
-        run: ./gradlew :composeApp:testAndroidHostTest :androidApp:assembleDebug --stacktrace
-
-      - name: Upload Debug APK Artifact
-        uses: actions/upload-artifact@v4
+        uses: gradle/actions/setup-gradle@v6
         with:
-          name: composeApp-debug-apk
-          path: mobile/androidApp/build/outputs/apk/debug/*.apk
+          # 缓存保留在 GitHub Actions，不启用额外的商业缓存服务。
+          cache-provider: basic
+
+      - name: Install mobile workspace dependencies
+        run: npm ci --workspace @xiehe/mobile --no-audit --no-fund
+
+      - name: Type check
+        run: npm run type-check:mobile
+
+      - name: Lint
+        run: npm run lint --workspace @xiehe/mobile
+
+      - name: Test
+        run: npm run test --workspace @xiehe/mobile
+
+      - name: Export Android, iOS and Web bundles
+        run: npm run export:mobile
+
+      - name: Generate Android project
+        working-directory: mobile
+        run: npx expo prebuild --platform android --no-install
+
+      # CI 制品供安装验证，正式签名与自动发布后续单独配置。
+      - name: Build Android release APK
+        working-directory: mobile/android
+        run: ./gradlew :app:assembleRelease --console=plain --no-daemon --max-workers=2
+
+      - name: Upload Android APK artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: mobile-android-release-apk
+          path: mobile/android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
-
-  release:
-    name: Release APK
-    needs: ci
-    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    defaults:
-      run:
-        working-directory: mobile
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Compute Release Profile
-        id: meta
-        shell: bash
-        run: |
-          TAG="${GITHUB_REF_NAME}"
-          SHA="${GITHUB_SHA}"
-          git -C "$GITHUB_WORKSPACE" fetch --no-tags origin dev main
-
-          IN_DEV=false
-          IN_MAIN=false
-          if git -C "$GITHUB_WORKSPACE" merge-base --is-ancestor "$SHA" "origin/dev"; then
-            IN_DEV=true
-          fi
-          if git -C "$GITHUB_WORKSPACE" merge-base --is-ancestor "$SHA" "origin/main"; then
-            IN_MAIN=true
-          fi
-
-          if [[ "$IN_MAIN" == "true" ]]; then
-            echo "allow_cleartext=false" >> "$GITHUB_OUTPUT"
-            echo "prerelease=false" >> "$GITHUB_OUTPUT"
-            echo "release_name=Android Main APK ${TAG}" >> "$GITHUB_OUTPUT"
-          elif [[ "$IN_DEV" == "true" ]]; then
-            echo "allow_cleartext=true" >> "$GITHUB_OUTPUT"
-            echo "prerelease=true" >> "$GITHUB_OUTPUT"
-            echo "release_name=Android Dev APK ${TAG}" >> "$GITHUB_OUTPUT"
-          else
-            # Fallback for unknown branch ancestry: keep previous suffix behavior.
-            if [[ "$TAG" == *_dev ]]; then
-              echo "allow_cleartext=true" >> "$GITHUB_OUTPUT"
-              echo "prerelease=true" >> "$GITHUB_OUTPUT"
-              echo "release_name=Android Dev APK ${TAG}" >> "$GITHUB_OUTPUT"
-            else
-              echo "allow_cleartext=false" >> "$GITHUB_OUTPUT"
-              echo "prerelease=false" >> "$GITHUB_OUTPUT"
-              echo "release_name=Android Main APK ${TAG}" >> "$GITHUB_OUTPUT"
-            fi
-          fi
-
-      - name: Build Debug APK For Release
-        run: ./gradlew :androidApp:assembleDebug -PallowCleartextTraffic=${{ steps.meta.outputs.allow_cleartext }} --stacktrace
-
-      - name: Normalize APK name
-        shell: bash
-        run: |
-          APK_PATH=$(ls androidApp/build/outputs/apk/debug/*.apk | head -n1)
-          cp "$APK_PATH" xiehe-spine.apk
-
-      - name: Publish APK to GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_name }}
-          name: ${{ steps.meta.outputs.release_name }}
-          prerelease: ${{ steps.meta.outputs.prerelease }}
-          files: mobile/xiehe-spine.apk
-          fail_on_unmatched_files: true
+          compression-level: 0
+          retention-days: 14

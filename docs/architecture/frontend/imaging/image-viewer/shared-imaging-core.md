@@ -6,7 +6,7 @@
 
 ```text
 frontend/                       # Next.js Web 应用
-mobile-expo/                    # React Native + Expo 新移动端
+mobile/                    # React Native + Expo 新移动端
 packages/xiehe-imaging-core/    # 平台无关影像规则
 packages/xiehe-*-core/          # 认证、权限、患者、上传等公共业务规则
 ```

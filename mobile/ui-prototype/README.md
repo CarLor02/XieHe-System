@@ -1,10 +1,10 @@
 # 移动端 UI 参考原型
 
 这是独立的 React + Vite HTML 原型，用于查看信息结构、紫色主题及交互草图。
-真正的 Android / iOS 应用在上一级 `mobile-expo/src/`，不运行这套 HTML 页面。
+真正的 Android / iOS 应用在上一级 `mobile/src/`，不运行这套 HTML 页面。
 
 ```bash
-cd mobile-expo/ui-prototype
+cd mobile/ui-prototype
 npm ci --workspaces=false
 npm run dev -- --host 127.0.0.1 --port 4173
 ```
