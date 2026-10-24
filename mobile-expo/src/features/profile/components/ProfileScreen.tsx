@@ -23,7 +23,7 @@ import {
   Tag,
   type IconName,
 } from '../../../shared/ui';
-import { GradientIcon } from '../../../shared/ui/GradientIcon';
+import { GradientIcon } from '../../../shared/ui/gradient-icon';
 import { colors, layout } from '../../../shared/theme';
 
 const menu: {

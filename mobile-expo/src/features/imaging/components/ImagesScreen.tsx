@@ -22,7 +22,7 @@ import {
 } from '../../../shared/ui';
 import { colors, layout } from '../../../shared/theme';
 import { imageStatusLabel } from '../domain/presentation';
-import { FilterChip } from '../../../shared/ui/FilterChip';
+import { FilterChip } from '../../../shared/ui/filter-chip';
 import { useImageThumbnails } from '../application/useImageThumbnails';
 import { useImageActions } from '../application/useImageActions';
 import { ImageCard } from './ImageCard';

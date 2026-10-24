@@ -17,7 +17,7 @@ import {
   SearchField,
 } from '../../../shared/ui';
 import { colors } from '../../../shared/theme';
-import { FilterChip } from '../../../shared/ui/FilterChip';
+import { FilterChip } from '../../../shared/ui/filter-chip';
 import { PatientCard } from './PatientCard';
 
 export function PatientsScreen() {

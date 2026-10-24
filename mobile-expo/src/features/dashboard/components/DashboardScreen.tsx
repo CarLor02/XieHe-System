@@ -16,7 +16,7 @@ import {
   Screen,
   type IconName,
 } from '../../../shared/ui';
-import { GradientIcon } from '../../../shared/ui/GradientIcon';
+import { GradientIcon } from '../../../shared/ui/gradient-icon';
 import { colors, layout } from '../../../shared/theme';
 import { useDashboard } from '../application/useDashboard';
 import { ActivityList } from './ActivityList';

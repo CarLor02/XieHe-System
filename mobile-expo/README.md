@@ -137,6 +137,13 @@ src/shared/               # 无业务归属的 UI、主题和加载/防抖适配
 ui-prototype/             # 独立 Vite HTML 原型，不参与 Expo 编译和打包
 ```
 
+公共 UI 按组件建立小写连字符目录，例如 `src/shared/ui/choice-sheet/`，目录内放
+`ChoiceSheet.tsx` 实现和 `index.ts` 公开导出；组件自己的样式与实现放在一起。
+根目录 `src/shared/ui/index.ts` 也只维护公开导出，不承载组件实现或样式。
+调用方通过 `shared/ui` 或 `shared/ui/choice-sheet` 的目录入口导入，不依赖内部实现文件；
+公共组件之间通过同级组件的目录入口依赖，避免反向导入根入口形成循环依赖。
+患者、影像等业务查询和状态编排继续留在所属 feature，公共 UI 不直接依赖业务服务。
+
 HTTP DTO 和 endpoint 继续归属于共享 contracts / SDK；患者查询展示、登录校验、标注
 解码及分片上传协调复用已有公共包。页面不得自行创建 Axios 实例或引入 HTML 原型代码。
 

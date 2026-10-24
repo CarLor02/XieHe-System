@@ -18,7 +18,7 @@ import {
   SearchField,
   Tag,
 } from '../../../shared/ui';
-import { FilterChip } from '../../../shared/ui/FilterChip';
+import { FilterChip } from '../../../shared/ui/filter-chip';
 import { layout } from '../../../shared/theme';
 import {
   reportStatuses,

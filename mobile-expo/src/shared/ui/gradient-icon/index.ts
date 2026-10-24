@@ -1,0 +1,1 @@
+export { GradientIcon } from './GradientIcon';

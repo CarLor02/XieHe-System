@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
-import { colors } from '../theme';
-import { Icon, type IconName } from './index';
+import { colors } from '../../theme';
+import { Icon, type IconName } from '../icon';
 
 export function FilterChip({
   title,
