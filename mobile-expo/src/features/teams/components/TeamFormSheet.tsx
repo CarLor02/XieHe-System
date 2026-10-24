@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import type { TeamSummary } from '@xiehe/api-contracts/generated';
 import { normalizeTeamForm } from '@xiehe/access-core';
-import { useMutation } from '../../../shared/hooks/useMutation';
-import { Button, ChoiceSheet, ErrorState, Field } from '../../../shared/ui';
-import type { TeamsGateway } from '../application/ports';
+import { useMutation } from '@/shared/hooks/useMutation';
+import { Button, ChoiceSheet, ErrorState, Field } from '@/shared/ui';
+import type { TeamsGateway } from '@/features/teams/application/ports';
 
 export function TeamFormSheet({
   gateway,

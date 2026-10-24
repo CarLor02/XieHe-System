@@ -1,5 +1,5 @@
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import { colors, layout } from '../../theme';
+import { colors, layout } from '@/shared/theme';
 
 export function LoadingState({ label = '正在加载…' }: { label?: string }) {
   return (

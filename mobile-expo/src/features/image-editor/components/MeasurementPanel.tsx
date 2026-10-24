@@ -5,7 +5,7 @@ import {
 } from '@xiehe/imaging-catalog/annotations';
 import { memo, useSyncExternalStore } from 'react';
 import type { MeasurementData } from '@xiehe/imaging-core/contracts';
-import type { EditorReadoutStore } from '../application/EditorReadoutStore';
+import type { EditorReadoutStore } from '@/features/image-editor/application/EditorReadoutStore';
 import { EditorButton } from './EditorButton';
 import { editorColors as c, editorStyles as s } from './editorTheme';
 

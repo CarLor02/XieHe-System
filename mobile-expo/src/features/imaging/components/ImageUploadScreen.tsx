@@ -12,11 +12,11 @@ import {
   Screen,
   SectionTitle,
   SelectionList,
-} from '../../../shared/ui';
-import { colors, layout } from '../../../shared/theme';
-import { PatientPicker } from '../../patients/selection';
-import { useImageUpload } from '../application/useImageUpload';
-import { formatFileSize } from '../domain/presentation';
+} from '@/shared/ui';
+import { colors, layout } from '@/shared/theme';
+import { PatientPicker } from '@/features/patients/selection';
+import { useImageUpload } from '@/features/imaging/application/useImageUpload';
+import { formatFileSize } from '@/features/imaging/domain/presentation';
 import { TeamPicker } from './TeamPicker';
 import { examTypeOptions } from './imageSelectionOptions';
 

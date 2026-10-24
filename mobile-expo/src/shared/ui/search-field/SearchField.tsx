@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
-import { colors } from '../../theme';
-import { Icon } from '../icon';
+import { colors } from '@/shared/theme';
+import { Icon } from '@/shared/ui/icon';
 
 export function SearchField({
   value,

@@ -1,7 +1,7 @@
 import type { PropsWithChildren, ReactNode } from 'react';
 import { Text, View } from 'react-native';
-import { Card } from '../../../shared/ui';
-import { colors } from '../../../shared/theme';
+import { Card } from '@/shared/ui';
+import { colors } from '@/shared/theme';
 
 export function DashboardSection({
   title,

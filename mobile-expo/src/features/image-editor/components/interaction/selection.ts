@@ -13,8 +13,8 @@ import type { Point } from '@xiehe/imaging-core/contracts';
 import { getBoundingBoxCenter } from '@xiehe/imaging-core/geometry';
 import { getBilateralPelvicGeometryForMeasurement } from '@xiehe/imaging-core/measurements/lateral';
 import { resolveTtsMeasurement } from '@xiehe/imaging-core/measurements/ap';
-import type { ImageEditorSession } from '../../application/ImageEditorSession';
-import type { EditorSelection } from '../../application/dragAnnotation';
+import type { ImageEditorSession } from '@/features/image-editor/application/ImageEditorSession';
+import type { EditorSelection } from '@/features/image-editor/application/dragAnnotation';
 
 export function findSelection(
   session: ImageEditorSession,

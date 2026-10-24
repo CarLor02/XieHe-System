@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
-import { useResource } from '../../../shared/hooks/useResource';
-import { useDebouncedValue } from '../../../shared/hooks/useDebouncedValue';
+import { useResource } from '@/shared/hooks/useResource';
+import { useDebouncedValue } from '@/shared/hooks/useDebouncedValue';
 import type { ReportsGateway } from './ports';
 
 export const reportStatuses = [

@@ -1,5 +1,5 @@
 import type { Point } from '@xiehe/imaging-core/contracts';
-import type { EditorSelection } from '../../application/dragAnnotation';
+import type { EditorSelection } from '@/features/image-editor/application/dragAnnotation';
 
 export type Viewport = { imageScale: number; imagePosition: Point };
 export type PanSample = {

@@ -1,6 +1,6 @@
 import * as ImagePicker from 'expo-image-picker';
 import { File, FileMode } from 'expo-file-system';
-import type { AvatarFile } from '../../features/profile/application/ports';
+import type { AvatarFile } from '@/features/profile/application/ports';
 
 export async function pickAvatar(): Promise<AvatarFile | null> {
   const result = await ImagePicker.launchImageLibraryAsync({

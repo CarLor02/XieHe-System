@@ -3,7 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Icon, IconButton } from '../../../shared/ui';
+import { Icon, IconButton } from '@/shared/ui';
 
 export function DashboardHeader({ user }: { user: SessionUser }) {
   const insets = useSafeAreaInsets();

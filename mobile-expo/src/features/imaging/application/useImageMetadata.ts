@@ -4,8 +4,8 @@ import {
   splitImageFilename,
   validateImageBasename,
 } from '@xiehe/imaging-core/image-files';
-import { useMutation } from '../../../shared/hooks/useMutation';
-import type { MobileServices } from '../../../application/services';
+import { useMutation } from '@/shared/hooks/useMutation';
+import type { MobileServices } from '@/application/services';
 
 export function useImageMetadata(
   image: ImageFileDetail,

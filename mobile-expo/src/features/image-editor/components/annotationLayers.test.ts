@@ -9,7 +9,7 @@ import {
   createEmptyBindings,
   createManualPointRef,
 } from '@xiehe/imaging-core/bindings';
-import { dragAnnotation } from '../application/dragAnnotation';
+import { dragAnnotation } from '@/features/image-editor/application/dragAnnotation';
 import {
   emptyLayer,
   geometryBounds,

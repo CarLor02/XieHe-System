@@ -1,7 +1,10 @@
 import type { HttpClient } from '@xiehe/api-client';
-import type { ImageUploadGateway } from '../application/uploadPorts';
+import type { ImageUploadGateway } from '@/features/imaging/application/uploadPorts';
 import { runMultipartUpload } from '@xiehe/upload-core';
-import { validateUploadFile, type MobileUploadFile } from '../domain/upload';
+import {
+  validateUploadFile,
+  type MobileUploadFile,
+} from '@/features/imaging/domain/upload';
 
 export async function uploadImage(input: {
   uploads: ImageUploadGateway;

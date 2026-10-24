@@ -8,8 +8,8 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useApp, useWorkspace } from '../../../application/AppProvider';
-import { useProfile } from '../application/useProfile';
+import { useApp, useWorkspace } from '@/application/AppProvider';
+import { useProfile } from '@/features/profile/application/useProfile';
 import {
   Button,
   Card,
@@ -22,9 +22,9 @@ import {
   Screen,
   Tag,
   type IconName,
-} from '../../../shared/ui';
-import { GradientIcon } from '../../../shared/ui/gradient-icon';
-import { colors, layout } from '../../../shared/theme';
+} from '@/shared/ui';
+import { GradientIcon } from '@/shared/ui/gradient-icon';
+import { colors, layout } from '@/shared/theme';
 
 const menu: {
   title: string;

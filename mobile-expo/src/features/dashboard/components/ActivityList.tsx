@@ -1,8 +1,8 @@
 import type { DashboardActivity } from '@xiehe/api-contracts';
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Icon, type IconName } from '../../../shared/ui';
-import { colors, layout } from '../../../shared/theme';
+import { Icon, type IconName } from '@/shared/ui';
+import { colors, layout } from '@/shared/theme';
 
 const appearance: Record<
   string,

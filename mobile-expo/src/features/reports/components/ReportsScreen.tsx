@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Pressable, RefreshControl, Text, View } from 'react-native';
-import { useWorkspace } from '../../../application/AppProvider';
+import { useWorkspace } from '@/application/AppProvider';
 import {
   Card,
   Content,
@@ -16,14 +16,14 @@ import {
   SearchField,
   SelectionSheet,
   Tag,
-} from '../../../shared/ui';
-import { FilterChip } from '../../../shared/ui/filter-chip';
-import { layout } from '../../../shared/theme';
+} from '@/shared/ui';
+import { FilterChip } from '@/shared/ui/filter-chip';
+import { layout } from '@/shared/theme';
 import {
   reportStatuses,
   reportStatusLabel,
   useReports,
-} from '../application/useReports';
+} from '@/features/reports/application/useReports';
 
 const reportStatusOptions = reportStatuses.map(([value, label]) => ({
   value,

@@ -1,1 +1,1 @@
-export { PasswordScreen as default } from '../../../features/profile';
+export { PasswordScreen as default } from '@/features/profile';

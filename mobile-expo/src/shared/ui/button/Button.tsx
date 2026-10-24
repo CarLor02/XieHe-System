@@ -1,6 +1,6 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
-import { colors } from '../../theme';
-import { Icon, type IconName } from '../icon';
+import { colors } from '@/shared/theme';
+import { Icon, type IconName } from '@/shared/ui/icon';
 
 export function Button({
   title,

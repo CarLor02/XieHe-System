@@ -1,14 +1,7 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
-import { useWorkspace } from '../../../application/AppProvider';
-import {
-  Card,
-  Content,
-  Header,
-  InfoRow,
-  Notice,
-  Screen,
-} from '../../../shared/ui';
+import { useWorkspace } from '@/application/AppProvider';
+import { Card, Content, Header, InfoRow, Notice, Screen } from '@/shared/ui';
 
 export function SettingsScreen() {
   const { serverUrl } = useWorkspace();

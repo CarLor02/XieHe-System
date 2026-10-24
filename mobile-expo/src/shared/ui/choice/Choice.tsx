@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
-import { colors, layout } from '../../theme';
-import { Icon } from '../icon';
+import { colors, layout } from '@/shared/theme';
+import { Icon } from '@/shared/ui/icon';
 
 export function Choice({
   title,

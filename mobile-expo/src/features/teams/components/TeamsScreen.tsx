@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { router } from 'expo-router';
 import { Text, View } from 'react-native';
 import type { TeamSummary } from '@xiehe/api-contracts/generated';
-import { useWorkspace } from '../../../application/AppProvider';
+import { useWorkspace } from '@/application/AppProvider';
 import {
   Button,
   Card,
@@ -19,9 +19,9 @@ import {
   Screen,
   SearchField,
   Tag,
-} from '../../../shared/ui';
-import { layout } from '../../../shared/theme';
-import { useTeams } from '../application/useTeams';
+} from '@/shared/ui';
+import { layout } from '@/shared/theme';
+import { useTeams } from '@/features/teams/application/useTeams';
 import { TeamFormSheet } from './TeamFormSheet';
 
 export function TeamsScreen() {

@@ -7,8 +7,8 @@ import {
 } from '@xiehe/imaging-core/canvas';
 import type { AnnotationEditorSnapshot } from '@xiehe/imaging-core/editor';
 import type { MeasurementData, Point } from '@xiehe/imaging-core/contracts';
-import type { EditorSelection } from '../application/dragAnnotation';
-import type { EditorReadoutStore } from '../application/EditorReadoutStore';
+import type { EditorSelection } from '@/features/image-editor/application/dragAnnotation';
+import type { EditorReadoutStore } from '@/features/image-editor/application/EditorReadoutStore';
 import type { DragPreview, Viewport } from './interaction/canvasGestureModel';
 import {
   geometryBounds,

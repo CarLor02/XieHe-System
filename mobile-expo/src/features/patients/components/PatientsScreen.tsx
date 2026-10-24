@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { RefreshControl, View } from 'react-native';
 import { router } from 'expo-router';
-import { useWorkspace } from '../../../application/AppProvider';
-import { usePatientList } from '../application/usePatientList';
+import { useWorkspace } from '@/application/AppProvider';
+import { usePatientList } from '@/features/patients/application/usePatientList';
 import {
   Content,
   EmptyState,
@@ -14,9 +14,9 @@ import {
   Screen,
   SearchField,
   SelectionSheet,
-} from '../../../shared/ui';
-import { colors } from '../../../shared/theme';
-import { FilterChip } from '../../../shared/ui/filter-chip';
+} from '@/shared/ui';
+import { colors } from '@/shared/theme';
+import { FilterChip } from '@/shared/ui/filter-chip';
 import { PatientCard } from './PatientCard';
 import { genderFilterOptions } from './patientSelectionOptions';
 

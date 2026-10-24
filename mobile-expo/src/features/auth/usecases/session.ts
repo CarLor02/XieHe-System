@@ -1,5 +1,5 @@
 import type { SessionUser } from '@xiehe/api-contracts';
-import type { AuthenticationSession } from '../application/ports';
+import type { AuthenticationSession } from '@/features/auth/application/ports';
 import { validateLoginForm } from '@xiehe/auth-core';
 
 export async function signIn(

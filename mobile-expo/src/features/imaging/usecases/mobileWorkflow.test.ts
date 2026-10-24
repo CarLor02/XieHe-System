@@ -5,9 +5,9 @@ import {
   createHttpClientAdapter,
 } from '@xiehe/api-client/stellarmesh';
 import { createXieheApiSdk } from '@xiehe/api-sdk';
-import type { ExpoApiInfrastructure } from '../../../infrastructure/http/createExpoApiInfrastructure';
-import type { MobileSessionTokens } from '../../../infrastructure/auth/sessionTokens';
-import { signIn, signOut } from '../../auth/usecases/session';
+import type { ExpoApiInfrastructure } from '@/infrastructure/http/createExpoApiInfrastructure';
+import type { MobileSessionTokens } from '@/infrastructure/auth/sessionTokens';
+import { signIn, signOut } from '@/features/auth/usecases/session';
 import { uploadImage } from './uploadImage';
 
 interface RequestRecord {

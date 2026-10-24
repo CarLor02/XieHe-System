@@ -1,6 +1,6 @@
 import { Text, View } from 'react-native';
-import { layout } from '../../theme';
-import { Button } from '../button';
+import { layout } from '@/shared/theme';
+import { Button } from '@/shared/ui/button';
 
 export function Pagination({
   page,

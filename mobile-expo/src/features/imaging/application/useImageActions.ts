@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Linking } from 'react-native';
 import type { ImageFile } from '@xiehe/api-contracts';
 import { getApiErrorMessage } from '@xiehe/api-client';
-import { useWorkspace } from '../../../application/AppProvider';
+import { useWorkspace } from '@/application/AppProvider';
 
 export function useImageActions(onDeleted: () => void) {
   const { services } = useWorkspace();

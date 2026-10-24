@@ -19,7 +19,7 @@ import { ImageEditorSession } from './ImageEditorSession';
 import { EditorReadoutStore } from './EditorReadoutStore';
 import type { ImageEditorGateway } from './ports';
 import { imageToScreen } from '@xiehe/imaging-core/canvas';
-import { CanvasInteraction } from '../components/interaction/CanvasInteraction';
+import { CanvasInteraction } from '@/features/image-editor/components/interaction/CanvasInteraction';
 
 function image(
   annotation: AnnotationDocument | null,

@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import type { ReportResponse } from '@xiehe/api-contracts/generated';
-import { useResource } from '../../../shared/hooks/useResource';
-import { useMutation } from '../../../shared/hooks/useMutation';
+import { useResource } from '@/shared/hooks/useResource';
+import { useMutation } from '@/shared/hooks/useMutation';
 import { reportDraft, reportChanges, newReport } from './reportForm';
 import type { ReportsGateway } from './ports';
 

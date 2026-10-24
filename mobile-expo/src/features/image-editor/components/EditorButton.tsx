@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
-import { Icon, type IconName } from '../../../shared/ui';
+import { Icon, type IconName } from '@/shared/ui';
 import { editorColors as c } from './editorTheme';
 
 export function EditorButton({

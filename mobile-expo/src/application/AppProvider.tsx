@@ -9,14 +9,14 @@ import {
 } from 'react';
 import { getApiErrorMessage } from '@xiehe/api-client';
 import type { SessionUser } from '@xiehe/api-contracts';
-import { normalizeServerUrl } from '../features/auth/domain/serverUrl';
-import { signIn, signOut } from '../features/auth/usecases/session';
-import { readSavedApiBaseUrl } from '../infrastructure/auth';
+import { normalizeServerUrl } from '@/features/auth/domain/serverUrl';
+import { signIn, signOut } from '@/features/auth/usecases/session';
+import { readSavedApiBaseUrl } from '@/infrastructure/auth';
 import {
   createExpoApiInfrastructure,
   type ExpoApiInfrastructure,
-} from '../infrastructure/http/createExpoApiInfrastructure';
-import { getExpoApiBaseUrl } from '../infrastructure/http/config';
+} from '@/infrastructure/http/createExpoApiInfrastructure';
+import { getExpoApiBaseUrl } from '@/infrastructure/http/config';
 import { createMobileServices } from './createMobileServices';
 import type { MobileServices } from './services';
 

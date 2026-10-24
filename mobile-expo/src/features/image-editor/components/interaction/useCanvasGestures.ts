@@ -10,7 +10,7 @@ import { Gesture } from 'react-native-gesture-handler';
 import { useFrameCallback, useSharedValue } from 'react-native-reanimated';
 import type { TransformContext } from '@xiehe/imaging-core/canvas';
 import type { ImageSize, Point } from '@xiehe/imaging-core/contracts';
-import type { ImageEditorSession } from '../../application/ImageEditorSession';
+import type { ImageEditorSession } from '@/features/image-editor/application/ImageEditorSession';
 import { CanvasInteraction } from './CanvasInteraction';
 import {
   emptyTimings,

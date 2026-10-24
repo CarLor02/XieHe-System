@@ -12,9 +12,9 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useApp } from '../../../application/AppProvider';
-import { Button, Card, Field, Icon, Notice } from '../../../shared/ui';
-import { colors, layout } from '../../../shared/theme';
+import { useApp } from '@/application/AppProvider';
+import { Button, Card, Field, Icon, Notice } from '@/shared/ui';
+import { colors, layout } from '@/shared/theme';
 
 export function LoginScreen() {
   const app = useApp();

@@ -3,8 +3,8 @@ import { useLocalSearchParams } from 'expo-router';
 import { Text, View } from 'react-native';
 import type { TeamMember } from '@xiehe/api-contracts/generated';
 import { canEditTeamMember, canRemoveTeamMember } from '@xiehe/access-core';
-import { useWorkspace } from '../../../application/AppProvider';
-import { useMutation } from '../../../shared/hooks/useMutation';
+import { useWorkspace } from '@/application/AppProvider';
+import { useMutation } from '@/shared/hooks/useMutation';
 import {
   Button,
   Card,
@@ -21,10 +21,10 @@ import {
   Screen,
   SearchField,
   Tag,
-} from '../../../shared/ui';
-import { layout } from '../../../shared/theme';
-import { useTeamDetail } from '../application/useTeams';
-import type { TeamsGateway } from '../application/ports';
+} from '@/shared/ui';
+import { layout } from '@/shared/theme';
+import { useTeamDetail } from '@/features/teams/application/useTeams';
+import type { TeamsGateway } from '@/features/teams/application/ports';
 import { TeamFormSheet } from './TeamFormSheet';
 
 export function TeamDetailScreen() {

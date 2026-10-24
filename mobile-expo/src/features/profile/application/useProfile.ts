@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { getApiErrorMessage } from '@xiehe/api-client';
-import type { MobileServices } from '../../../application/services';
-import { useResource } from '../../../shared/hooks/useResource';
+import type { MobileServices } from '@/application/services';
+import { useResource } from '@/shared/hooks/useResource';
 
 export function useProfile(
   dashboard: Pick<MobileServices['dashboard'], 'getStats'>,

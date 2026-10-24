@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Image } from 'expo-image';
-import { useApp, useWorkspace } from '../../../application/AppProvider';
-import { useMutation } from '../../../shared/hooks/useMutation';
-import { pickAvatar } from '../../../infrastructure/files/pickAvatar';
+import { useApp, useWorkspace } from '@/application/AppProvider';
+import { useMutation } from '@/shared/hooks/useMutation';
+import { pickAvatar } from '@/infrastructure/files/pickAvatar';
 import {
   Button,
   Card,
@@ -10,7 +10,7 @@ import {
   ErrorState,
   Icon,
   Notice,
-} from '../../../shared/ui';
+} from '@/shared/ui';
 
 export function AvatarEditor() {
   const { services, user } = useWorkspace();

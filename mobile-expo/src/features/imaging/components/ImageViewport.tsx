@@ -6,7 +6,7 @@ import Animated, {
   useSharedValue,
 } from 'react-native-reanimated';
 import { StyleSheet, Text, View } from 'react-native';
-import { Icon, IconButton } from '../../../shared/ui';
+import { Icon, IconButton } from '@/shared/ui';
 
 export function ImageViewport({ uri }: { uri: string }) {
   const scale = useSharedValue(1);

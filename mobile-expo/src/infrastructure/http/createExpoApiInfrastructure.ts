@@ -6,7 +6,7 @@ import { createAuthApi } from '@xiehe/api-sdk/api/authApi';
 import {
   createSecureSessionTokenStore,
   type MobileSessionTokenStore,
-} from '../auth';
+} from '@/infrastructure/auth';
 import { getExpoApiBaseUrl } from './config';
 
 export interface ExpoApiInfrastructure {

@@ -1,7 +1,7 @@
 import type { ImageFileStatus } from '@xiehe/api-contracts';
 import { EXAM_TYPES } from '@xiehe/imaging-core';
-import type { SelectionOption } from '../../../shared/ui/selection-list';
-import { imageStatusLabel } from '../domain/presentation';
+import type { SelectionOption } from '@/shared/ui/selection-list';
+import { imageStatusLabel } from '@/features/imaging/domain/presentation';
 
 export const examTypeOptions = EXAM_TYPES.map(value => ({
   value,

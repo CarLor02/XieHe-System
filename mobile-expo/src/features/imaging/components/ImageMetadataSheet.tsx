@@ -1,6 +1,6 @@
 import { Text } from 'react-native';
 import type { ImageFileDetail } from '@xiehe/api-contracts';
-import { useWorkspace } from '../../../application/AppProvider';
+import { useWorkspace } from '@/application/AppProvider';
 import {
   Button,
   ChoiceSheet,
@@ -9,9 +9,9 @@ import {
   Notice,
   SectionTitle,
   SelectionList,
-} from '../../../shared/ui';
-import { layout } from '../../../shared/theme';
-import { useImageMetadata } from '../application/useImageMetadata';
+} from '@/shared/ui';
+import { layout } from '@/shared/theme';
+import { useImageMetadata } from '@/features/imaging/application/useImageMetadata';
 import { TeamPicker } from './TeamPicker';
 import { examTypeOptions } from './imageSelectionOptions';
 

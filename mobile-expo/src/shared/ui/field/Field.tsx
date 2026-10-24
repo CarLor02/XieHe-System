@@ -5,7 +5,7 @@ import {
   View,
   type TextInputProps,
 } from 'react-native';
-import { colors, layout } from '../../theme';
+import { colors, layout } from '@/shared/theme';
 
 export function Field({
   label,

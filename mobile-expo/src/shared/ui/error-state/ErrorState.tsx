@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { colors } from '../../theme';
-import { Card } from '../card';
-import { Button } from '../button';
+import { colors } from '@/shared/theme';
+import { Card } from '@/shared/ui/card';
+import { Button } from '@/shared/ui/button';
 
 export function ErrorState({
   message,

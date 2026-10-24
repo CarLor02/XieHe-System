@@ -10,8 +10,8 @@ import {
   getColorForType,
   getLabelPositionForType,
 } from '@xiehe/imaging-catalog/annotations';
-import type { EditorReadoutStore } from '../application/EditorReadoutStore';
-import type { EditorSelection } from '../application/dragAnnotation';
+import type { EditorReadoutStore } from '@/features/image-editor/application/EditorReadoutStore';
+import type { EditorSelection } from '@/features/image-editor/application/dragAnnotation';
 import type { Viewport } from './interaction/canvasGestureModel';
 import { SvgLayer } from './SvgLayer';
 

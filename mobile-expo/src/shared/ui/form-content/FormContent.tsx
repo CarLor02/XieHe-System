@@ -1,7 +1,7 @@
 import type { PropsWithChildren } from 'react';
 import { KeyboardAvoidingView, Platform } from 'react-native';
-import { layout } from '../../theme';
-import { Content } from '../content';
+import { layout } from '@/shared/theme';
+import { Content } from '@/shared/ui/content';
 
 export function FormContent({ children }: PropsWithChildren) {
   return (

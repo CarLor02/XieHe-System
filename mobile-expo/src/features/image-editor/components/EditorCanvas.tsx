@@ -20,8 +20,8 @@ import {
   type TransformContext,
 } from '@xiehe/imaging-core/canvas';
 import type { ImageSize } from '@xiehe/imaging-core/contracts';
-import type { ImageEditorSession } from '../application/ImageEditorSession';
-import type { EditorReadoutStore } from '../application/EditorReadoutStore';
+import type { ImageEditorSession } from '@/features/image-editor/application/ImageEditorSession';
+import type { EditorReadoutStore } from '@/features/image-editor/application/EditorReadoutStore';
 import type { DragPerformanceMonitor } from './interaction/dragPerformance';
 import { useCanvasGestures } from './interaction/useCanvasGestures';
 import { AnnotationOverlay } from './AnnotationOverlay';

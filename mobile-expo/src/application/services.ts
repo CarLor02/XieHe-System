@@ -1,9 +1,9 @@
-import type { ReportsGateway } from '../features/reports';
-import type { TeamsGateway } from '../features/teams';
-import type { ProfileGateway } from '../features/profile';
+import type { ReportsGateway } from '@/features/reports';
+import type { TeamsGateway } from '@/features/teams';
+import type { ProfileGateway } from '@/features/profile';
 import type { XieheApiSdk } from '@xiehe/api-sdk';
-import type { MobileUploadFile } from '../features/imaging/domain/upload';
-import type { ImageEditorGateway } from '../features/image-editor';
+import type { MobileUploadFile } from '@/features/imaging/domain/upload';
+import type { ImageEditorGateway } from '@/features/image-editor';
 
 export interface ImagePreview {
   uri: string | null;

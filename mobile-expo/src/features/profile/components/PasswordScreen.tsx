@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { getApiErrorMessage } from '@xiehe/api-client';
 import { Text } from 'react-native';
-import { useApp, useWorkspace } from '../../../application/AppProvider';
+import { useApp, useWorkspace } from '@/application/AppProvider';
 import {
   Button,
   Card,
@@ -10,8 +10,8 @@ import {
   Header,
   Notice,
   Screen,
-} from '../../../shared/ui';
-import { colors } from '../../../shared/theme';
+} from '@/shared/ui';
+import { colors } from '@/shared/theme';
 
 export function PasswordScreen() {
   const { services } = useWorkspace();

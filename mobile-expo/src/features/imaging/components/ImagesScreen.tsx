@@ -2,9 +2,9 @@ import { useCallback, useState } from 'react';
 import { RefreshControl, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import type { ImageFileStatus } from '@xiehe/api-contracts';
-import { useWorkspace } from '../../../application/AppProvider';
-import { useResource } from '../../../shared/hooks/useResource';
-import { useDebouncedValue } from '../../../shared/hooks/useDebouncedValue';
+import { useWorkspace } from '@/application/AppProvider';
+import { useResource } from '@/shared/hooks/useResource';
+import { useDebouncedValue } from '@/shared/hooks/useDebouncedValue';
 import {
   Button,
   ChoiceSheet,
@@ -18,12 +18,12 @@ import {
   Screen,
   SearchField,
   SelectionSheet,
-} from '../../../shared/ui';
-import { colors, layout } from '../../../shared/theme';
-import { imageStatusLabel } from '../domain/presentation';
-import { FilterChip } from '../../../shared/ui/filter-chip';
-import { useImageThumbnails } from '../application/useImageThumbnails';
-import { useImageActions } from '../application/useImageActions';
+} from '@/shared/ui';
+import { colors, layout } from '@/shared/theme';
+import { imageStatusLabel } from '@/features/imaging/domain/presentation';
+import { FilterChip } from '@/shared/ui/filter-chip';
+import { useImageThumbnails } from '@/features/imaging/application/useImageThumbnails';
+import { useImageActions } from '@/features/imaging/application/useImageActions';
 import { ImageCard } from './ImageCard';
 import {
   examTypeFilterOptions,

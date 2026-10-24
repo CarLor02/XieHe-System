@@ -2,9 +2,9 @@ import type { Patient } from '@xiehe/api-contracts';
 import { getPatientSearchDisplay } from '@xiehe/patient-core';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import { Card, Icon, Tag } from '../../../shared/ui';
-import { GradientIcon } from '../../../shared/ui/gradient-icon';
-import { colors, layout } from '../../../shared/theme';
+import { Card, Icon, Tag } from '@/shared/ui';
+import { GradientIcon } from '@/shared/ui/gradient-icon';
+import { colors, layout } from '@/shared/theme';
 
 export function PatientCard({ patient }: { patient: Patient }) {
   const display = getPatientSearchDisplay(patient);

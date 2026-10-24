@@ -5,7 +5,7 @@ import {
 import type { MeasurementData, Point } from '@xiehe/imaging-core/contracts';
 import type { AnnotationEditorSnapshot } from '@xiehe/imaging-core/editor';
 import type { KeypointAnnotation } from '@xiehe/imaging-core/keypoints';
-import type { EditorSelection } from '../application/dragAnnotation';
+import type { EditorSelection } from '@/features/image-editor/application/dragAnnotation';
 import { measurementGeometry } from './measurementGeometry';
 
 export interface AnnotationLayer {

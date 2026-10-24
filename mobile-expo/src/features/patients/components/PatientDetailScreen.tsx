@@ -1,9 +1,9 @@
 import { useCallback, useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Text, View } from 'react-native';
-import { useWorkspace } from '../../../application/AppProvider';
-import { useMutation } from '../../../shared/hooks/useMutation';
-import { useResource } from '../../../shared/hooks/useResource';
+import { useWorkspace } from '@/application/AppProvider';
+import { useMutation } from '@/shared/hooks/useMutation';
+import { useResource } from '@/shared/hooks/useResource';
 import {
   Button,
   Card,
@@ -18,9 +18,9 @@ import {
   Screen,
   SectionTitle,
   Tag,
-} from '../../../shared/ui';
-import { layout } from '../../../shared/theme';
-import { ImageCard } from '../../imaging';
+} from '@/shared/ui';
+import { layout } from '@/shared/theme';
+import { ImageCard } from '@/features/imaging';
 
 export function PatientDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();

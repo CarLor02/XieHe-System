@@ -1,9 +1,9 @@
 import type { ImageFile } from '@xiehe/api-contracts';
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Tag } from '../../../shared/ui';
-import { GradientIcon } from '../../../shared/ui/gradient-icon';
-import { colors, layout } from '../../../shared/theme';
+import { Tag } from '@/shared/ui';
+import { GradientIcon } from '@/shared/ui/gradient-icon';
+import { colors, layout } from '@/shared/theme';
 
 export function PendingTaskList({ images }: { images: ImageFile[] }) {
   return (

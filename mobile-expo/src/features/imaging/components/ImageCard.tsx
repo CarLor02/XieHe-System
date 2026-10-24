@@ -10,9 +10,12 @@ import {
   Text,
   View,
 } from 'react-native';
-import { Card, Icon, Tag } from '../../../shared/ui';
-import { colors, layout } from '../../../shared/theme';
-import { formatDate, imageStatusLabel } from '../domain/presentation';
+import { Card, Icon, Tag } from '@/shared/ui';
+import { colors, layout } from '@/shared/theme';
+import {
+  formatDate,
+  imageStatusLabel,
+} from '@/features/imaging/domain/presentation';
 
 export function ImageCard({
   image,

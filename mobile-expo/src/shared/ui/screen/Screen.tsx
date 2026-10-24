@@ -1,6 +1,6 @@
 import type { PropsWithChildren } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { colors } from '../../theme';
+import { colors } from '@/shared/theme';
 
 export function Screen({ children }: PropsWithChildren) {
   return <View style={styles.screen}>{children}</View>;

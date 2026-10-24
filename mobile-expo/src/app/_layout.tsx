@@ -2,9 +2,9 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { AppProvider, useApp } from '../application/AppProvider';
-import { LoadingState } from '../shared/ui';
-import { colors } from '../shared/theme';
+import { AppProvider, useApp } from '@/application/AppProvider';
+import { LoadingState } from '@/shared/ui';
+import { colors } from '@/shared/theme';
 
 export { ErrorBoundary } from 'expo-router';
 

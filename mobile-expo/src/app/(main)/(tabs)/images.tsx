@@ -1,1 +1,1 @@
-export { ImagesScreen as default } from '../../../features/imaging';
+export { ImagesScreen as default } from '@/features/imaging';

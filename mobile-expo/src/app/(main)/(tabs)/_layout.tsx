@@ -1,9 +1,9 @@
 import { Tabs } from 'expo-router';
 import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Icon, type IconName } from '../../../shared/ui';
-import { colors } from '../../../shared/theme';
-import { GradientIcon } from '../../../shared/ui/gradient-icon';
+import { Icon, type IconName } from '@/shared/ui';
+import { colors } from '@/shared/theme';
+import { GradientIcon } from '@/shared/ui/gradient-icon';
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();

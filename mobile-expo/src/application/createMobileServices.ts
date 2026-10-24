@@ -2,12 +2,12 @@ import {
   createStellarmeshHttp,
   createHttpClientAdapter,
 } from '@xiehe/api-client/stellarmesh';
-import { uploadAvatar } from '../features/profile/application/uploadAvatar';
+import { uploadAvatar } from '@/features/profile/application/uploadAvatar';
 import type { MobileServices } from './services';
-import { uploadImage } from '../features/imaging/usecases/uploadImage';
-import type { ExpoApiInfrastructure } from '../infrastructure/http/createExpoApiInfrastructure';
-import { createImageEditorGateway } from '../infrastructure/http/createImageEditorGateway';
-import { requireSupportedImage } from '../features/imaging/domain/supportedImage';
+import { uploadImage } from '@/features/imaging/usecases/uploadImage';
+import type { ExpoApiInfrastructure } from '@/infrastructure/http/createExpoApiInfrastructure';
+import { createImageEditorGateway } from '@/infrastructure/http/createImageEditorGateway';
+import { requireSupportedImage } from '@/features/imaging/domain/supportedImage';
 
 export function createMobileServices(
   api: ExpoApiInfrastructure

@@ -1,6 +1,6 @@
 import { Text } from 'react-native';
 import { decodeAnnotationDocument } from '@xiehe/imaging-core/annotation-document';
-import { useWorkspace } from '../../../application/AppProvider';
+import { useWorkspace } from '@/application/AppProvider';
 import {
   Button,
   Card,
@@ -10,10 +10,10 @@ import {
   InfoRow,
   LoadingState,
   Pagination,
-} from '../../../shared/ui';
-import { layout } from '../../../shared/theme';
-import { useAnnotationHistory } from '../application/useAnnotationHistory';
-import { formatDate } from '../domain/presentation';
+} from '@/shared/ui';
+import { layout } from '@/shared/theme';
+import { useAnnotationHistory } from '@/features/imaging/application/useAnnotationHistory';
+import { formatDate } from '@/features/imaging/domain/presentation';
 
 export function AnnotationHistorySheet({
   imageId,

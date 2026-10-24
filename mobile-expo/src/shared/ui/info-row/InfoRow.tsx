@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { layout } from '../../theme';
+import { layout } from '@/shared/theme';
 
 export function InfoRow({
   label,

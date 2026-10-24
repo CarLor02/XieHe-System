@@ -4,8 +4,8 @@ import { getApiErrorMessage } from '@xiehe/api-client';
 import { generatePatientIdentifier } from '@xiehe/patient-core';
 import type { Patient } from '@xiehe/api-contracts';
 import { Text, View } from 'react-native';
-import { useWorkspace } from '../../../application/AppProvider';
-import { useResource } from '../../../shared/hooks/useResource';
+import { useWorkspace } from '@/application/AppProvider';
+import { useResource } from '@/shared/hooks/useResource';
 import {
   Button,
   Card,
@@ -16,9 +16,12 @@ import {
   LoadingState,
   Screen,
   SelectionList,
-} from '../../../shared/ui';
-import { colors, layout } from '../../../shared/theme';
-import { toPatientRequest, type PatientFormValue } from '../domain/patientForm';
+} from '@/shared/ui';
+import { colors, layout } from '@/shared/theme';
+import {
+  toPatientRequest,
+  type PatientFormValue,
+} from '@/features/patients/domain/patientForm';
 import { genderOptions } from './patientSelectionOptions';
 
 function PatientForm({ patient }: { patient?: Patient }) {

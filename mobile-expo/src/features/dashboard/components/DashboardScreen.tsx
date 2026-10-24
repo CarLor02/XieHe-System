@@ -15,10 +15,10 @@ import {
   LoadingState,
   Screen,
   type IconName,
-} from '../../../shared/ui';
-import { GradientIcon } from '../../../shared/ui/gradient-icon';
-import { colors, layout } from '../../../shared/theme';
-import { useDashboard } from '../application/useDashboard';
+} from '@/shared/ui';
+import { GradientIcon } from '@/shared/ui/gradient-icon';
+import { colors, layout } from '@/shared/theme';
+import { useDashboard } from '@/features/dashboard/application/useDashboard';
 import { ActivityList } from './ActivityList';
 import { DashboardHeader } from './DashboardHeader';
 import { DashboardSection } from './DashboardSection';

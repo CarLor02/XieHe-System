@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
-import { useResource } from '../../../shared/hooks/useResource';
-import { useDebouncedValue } from '../../../shared/hooks/useDebouncedValue';
-import { useMutation } from '../../../shared/hooks/useMutation';
+import { useResource } from '@/shared/hooks/useResource';
+import { useDebouncedValue } from '@/shared/hooks/useDebouncedValue';
+import { useMutation } from '@/shared/hooks/useMutation';
 import { canManageTeam } from '@xiehe/access-core';
 import type { AccessUser } from '@xiehe/access-core';
 import type { TeamsGateway } from './ports';

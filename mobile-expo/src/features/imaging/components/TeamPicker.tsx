@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
-import { useWorkspace } from '../../../application/AppProvider';
-import { useResource } from '../../../shared/hooks/useResource';
-import { useDebouncedValue } from '../../../shared/hooks/useDebouncedValue';
+import { useWorkspace } from '@/application/AppProvider';
+import { useResource } from '@/shared/hooks/useResource';
+import { useDebouncedValue } from '@/shared/hooks/useDebouncedValue';
 import {
   Choice,
   EmptyState,
@@ -9,7 +9,7 @@ import {
   LoadingState,
   Pagination,
   SearchField,
-} from '../../../shared/ui';
+} from '@/shared/ui';
 
 export function TeamPicker({
   selected,

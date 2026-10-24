@@ -1,7 +1,7 @@
 import type { PropsWithChildren } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { colors, layout } from '../../theme';
-import { Icon } from '../icon';
+import { colors, layout } from '@/shared/theme';
+import { Icon } from '@/shared/ui/icon';
 
 export function Notice({
   children,

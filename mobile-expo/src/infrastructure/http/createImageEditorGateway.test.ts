@@ -7,7 +7,7 @@ import {
   decodeAnnotationDocument,
 } from '@xiehe/imaging-core/annotation-document';
 import { createImageEditorGateway } from './createImageEditorGateway';
-import { ImageEditorSession } from '../../features/image-editor/application/ImageEditorSession';
+import { ImageEditorSession } from '@/features/image-editor/application/ImageEditorSession';
 
 let server: Server | undefined;
 afterEach(async () => {

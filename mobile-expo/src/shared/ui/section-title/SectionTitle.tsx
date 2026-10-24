@@ -1,5 +1,5 @@
 import { Pressable, Text, View } from 'react-native';
-import { colors, layout } from '../../theme';
+import { colors, layout } from '@/shared/theme';
 
 export function SectionTitle({
   title,

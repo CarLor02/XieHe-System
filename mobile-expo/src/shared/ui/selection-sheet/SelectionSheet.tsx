@@ -1,9 +1,9 @@
-import { ChoiceSheet } from '../choice-sheet';
+import { ChoiceSheet } from '@/shared/ui/choice-sheet';
 import {
   SelectionList,
   type SelectionListProps,
   type SelectionValue,
-} from '../selection-list';
+} from '@/shared/ui/selection-list';
 
 export interface SelectionSheetProps<
   TValue extends SelectionValue,

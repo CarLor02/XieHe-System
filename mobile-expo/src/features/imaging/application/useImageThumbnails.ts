@@ -1,10 +1,10 @@
-import { isSupportedImage } from '../domain/supportedImage';
+import { isSupportedImage } from '@/features/imaging/domain/supportedImage';
 import { useEffect, useState } from 'react';
 import type {
   ImageFile,
   ImageFileDownloadUrlsResponse,
 } from '@xiehe/api-contracts';
-import { useWorkspace } from '../../../application/AppProvider';
+import { useWorkspace } from '@/application/AppProvider';
 
 export function useImageThumbnails(images?: ImageFile[]) {
   const { services } = useWorkspace();

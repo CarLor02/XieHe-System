@@ -8,12 +8,12 @@ import {
   Field,
   InfoRow,
   Notice,
-} from '../../../shared/ui';
-import { layout } from '../../../shared/theme';
+} from '@/shared/ui';
+import { layout } from '@/shared/theme';
 import type {
   ImageEditorSession,
   EditorState,
-} from '../application/ImageEditorSession';
+} from '@/features/image-editor/application/ImageEditorSession';
 
 export function EditorAnalysisSheet({
   session,

@@ -8,9 +8,9 @@ import {
   ChoiceSheet,
   Notice,
   SectionTitle,
-} from '../../../shared/ui';
-import { layout } from '../../../shared/theme';
-import type { ImageEditorSession } from '../application/ImageEditorSession';
+} from '@/shared/ui';
+import { layout } from '@/shared/theme';
+import type { ImageEditorSession } from '@/features/image-editor/application/ImageEditorSession';
 
 export function BindingSheet({
   session,

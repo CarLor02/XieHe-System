@@ -1,1 +1,1 @@
-export { TeamDetailScreen as default } from '../../../features/teams';
+export { TeamDetailScreen as default } from '@/features/teams';

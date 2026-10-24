@@ -3,14 +3,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createBoundSessionTokenStore,
   type MobileSessionTokenStore,
-} from '../auth/sessionTokens';
+} from '@/infrastructure/auth/sessionTokens';
 import {
   createExpoApiInfrastructure,
   type ExpoApiInfrastructure,
 } from './createExpoApiInfrastructure';
 
 // 本测试注入真实有序令牌存储的内存适配，避免载入 Expo 原生运行时。
-vi.mock('../auth', () => ({ createSecureSessionTokenStore: vi.fn() }));
+vi.mock('@/infrastructure/auth', () => ({ createSecureSessionTokenStore: vi.fn() }));
 vi.mock('./config', () => ({ getExpoApiBaseUrl: vi.fn() }));
 
 function json(response: ServerResponse, data: unknown, status = 200) {

@@ -1,1 +1,1 @@
-export { ProfileInfoScreen as default } from '../../../features/profile';
+export { ProfileInfoScreen as default } from '@/features/profile';

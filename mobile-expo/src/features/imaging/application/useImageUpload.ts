@@ -4,9 +4,9 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { getApiErrorMessage } from '@xiehe/api-client';
-import { useWorkspace } from '../../../application/AppProvider';
-import { readMobileFile } from '../../../infrastructure/files/readMobileFile';
-import type { MobileUploadFile } from '../domain/upload';
+import { useWorkspace } from '@/application/AppProvider';
+import { readMobileFile } from '@/infrastructure/files/readMobileFile';
+import type { MobileUploadFile } from '@/features/imaging/domain/upload';
 
 export function useImageUpload() {
   const { services } = useWorkspace();

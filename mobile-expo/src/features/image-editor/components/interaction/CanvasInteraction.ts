@@ -7,7 +7,7 @@ import {
   type TransformContext,
 } from '@xiehe/imaging-core/canvas';
 import type { Point } from '@xiehe/imaging-core/contracts';
-import type { ImageEditorSession } from '../../application/ImageEditorSession';
+import type { ImageEditorSession } from '@/features/image-editor/application/ImageEditorSession';
 import { findSelection, selectionAnchor } from './selection';
 import type { DragPlan, PanSample, Viewport } from './canvasGestureModel';
 

@@ -1,1 +1,1 @@
-export { PatientImagesScreen as default } from '../../../features/imaging';
+export { PatientImagesScreen as default } from '@/features/imaging';

@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { colors, layout } from '../../theme';
-import { Icon, type IconName } from '../icon';
-import { Button } from '../button';
+import { colors, layout } from '@/shared/theme';
+import { Icon, type IconName } from '@/shared/ui/icon';
+import { Button } from '@/shared/ui/button';
 
 export function EmptyState({
   title,

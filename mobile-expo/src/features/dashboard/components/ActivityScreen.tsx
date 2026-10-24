@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { RefreshControl } from 'react-native';
-import { useWorkspace } from '../../../application/AppProvider';
-import { useResource } from '../../../shared/hooks/useResource';
+import { useWorkspace } from '@/application/AppProvider';
+import { useResource } from '@/shared/hooks/useResource';
 import {
   Card,
   Content,
@@ -11,8 +11,8 @@ import {
   LoadingState,
   Notice,
   Screen,
-} from '../../../shared/ui';
-import { colors } from '../../../shared/theme';
+} from '@/shared/ui';
+import { colors } from '@/shared/theme';
 import { ActivityList } from './ActivityList';
 
 export function ActivityScreen() {

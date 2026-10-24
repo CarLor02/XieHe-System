@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
-import { useWorkspace } from '../../../application/AppProvider';
-import { useResource } from '../../../shared/hooks/useResource';
+import { useWorkspace } from '@/application/AppProvider';
+import { useResource } from '@/shared/hooks/useResource';
 
 export function useDashboard() {
   const { services, user } = useWorkspace();

@@ -12,7 +12,7 @@ import { getInteractivePointsCount } from '@xiehe/imaging-catalog/annotations';
 import type { AnnotationEditorSnapshot } from '@xiehe/imaging-core/editor';
 import type { MeasurementData, Point } from '@xiehe/imaging-core/contracts';
 import { getBilateralPelvicGeometryForMeasurement } from '@xiehe/imaging-core/measurements/lateral';
-import type { EditorSelection } from '../application/dragAnnotation';
+import type { EditorSelection } from '@/features/image-editor/application/dragAnnotation';
 import {
   controlPointKey,
   projectControlPoint,

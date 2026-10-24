@@ -26,11 +26,11 @@ import {
   isAuxiliaryToolbarTool,
   getAnnotationTypeId,
 } from '@xiehe/imaging-core/measurements';
-import { Icon } from '../../../shared/ui';
+import { Icon } from '@/shared/ui';
 import type {
   ImageEditorSession,
   EditorState,
-} from '../application/ImageEditorSession';
+} from '@/features/image-editor/application/ImageEditorSession';
 import { EditorButton } from './EditorButton';
 import { ToolIcon } from './ToolIcon';
 import { editorColors as c, editorStyles as s } from './editorTheme';

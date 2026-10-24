@@ -1,5 +1,5 @@
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
-import { Choice } from '../choice';
+import { Choice } from '@/shared/ui/choice';
 
 export type SelectionValue = string | number | null | undefined;
 

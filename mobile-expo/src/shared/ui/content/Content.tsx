@@ -1,5 +1,5 @@
 import { ScrollView, type ScrollViewProps } from 'react-native';
-import { layout } from '../../theme';
+import { layout } from '@/shared/theme';
 
 export function Content({
   children,

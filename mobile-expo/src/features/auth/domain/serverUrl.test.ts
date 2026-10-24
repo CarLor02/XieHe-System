@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { normalizeServerUrl } from './serverUrl';
-import { parseStoredSession } from '../../../infrastructure/auth/sessionTokens';
+import { parseStoredSession } from '@/infrastructure/auth/sessionTokens';
 
 describe('server/session boundary', () => {
   it('normalizes the unified API root', () => {

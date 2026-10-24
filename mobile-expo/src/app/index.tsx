@@ -1,5 +1,5 @@
 import { Redirect } from 'expo-router';
-import { useApp } from '../application/AppProvider';
+import { useApp } from '@/application/AppProvider';
 
 export default function HomeScreen() {
   const { session } = useApp();

@@ -1,9 +1,9 @@
 import { File, FileMode } from 'expo-file-system';
-import type { MobileUploadFile } from '../../features/imaging/domain/upload';
+import type { MobileUploadFile } from '@/features/imaging/domain/upload';
 import {
   mimeTypeForFilename,
   validateUploadFile,
-} from '../../features/imaging/domain/upload';
+} from '@/features/imaging/domain/upload';
 
 export function readMobileFile(asset: {
   name: string;

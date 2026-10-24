@@ -137,15 +137,21 @@ src/shared/               # 无业务归属的 UI、主题和加载/防抖适配
 ui-prototype/             # 独立 Vite HTML 原型，不参与 Expo 编译和打包
 ```
 
+源代码跨目录引用统一使用 `@/` 别名，对应 `src/`，例如
+`import { ChoiceSheet } from '@/shared/ui/choice-sheet'`；目录内部引用和公开入口导出
+保留 `./` 相对路径。`@/assets/` 对应应用根目录的 `assets/`，共享业务包继续使用
+`@xiehe/*` 包入口。Expo/Metro 使用已有的 `tsconfig.json` 路径映射，Vitest 同步配置
+别名解析，lint 会阻止重新引入跨目录的 `../` 路径。
+
 公共 UI 按组件建立小写连字符目录，例如 `src/shared/ui/choice-sheet/`，目录内放
 `ChoiceSheet.tsx` 实现和 `index.ts` 公开导出；组件自己的样式与实现放在一起。
 根目录 `src/shared/ui/index.ts` 也只维护公开导出，不承载组件实现或样式。
-调用方通过 `shared/ui` 或 `shared/ui/choice-sheet` 的目录入口导入，不依赖内部实现文件；
-公共组件之间通过同级组件的目录入口依赖，避免反向导入根入口形成循环依赖。
+调用方通过 `@/shared/ui` 或 `@/shared/ui/choice-sheet` 的目录入口导入，不依赖内部实现文件；
+公共组件之间通过 `@/shared/ui/icon` 等组件目录入口依赖，避免反向导入根入口形成循环依赖。
 患者、影像等业务查询和状态编排继续留在所属 feature，公共 UI 不直接依赖业务服务。
 
-单选选项统一使用 `SelectionList`，通过 `shared/ui/selection-list` 目录入口导入；
-完整的底部单选弹层使用 `SelectionSheet`，通过 `shared/ui/selection-sheet` 导入。
+单选选项统一使用 `SelectionList`，通过 `@/shared/ui/selection-list` 目录入口导入；
+完整的底部单选弹层使用 `SelectionSheet`，通过 `@/shared/ui/selection-sheet` 导入。
 两者接收 `options`、`value` 和 `onChange`，由调用方持有选中值。
 弹层在选择后通知调用方并关闭；检查类型、处理状态、
 性别和报告状态的选项定义、查询与分页重置继续留在所属业务模块。表单复用单选列表，

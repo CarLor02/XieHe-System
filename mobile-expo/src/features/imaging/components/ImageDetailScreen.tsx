@@ -1,8 +1,8 @@
 import { useCallback, useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Text } from 'react-native';
-import { useWorkspace } from '../../../application/AppProvider';
-import { useResource } from '../../../shared/hooks/useResource';
+import { useWorkspace } from '@/application/AppProvider';
+import { useResource } from '@/shared/hooks/useResource';
 import {
   Card,
   Button,
@@ -16,18 +16,21 @@ import {
   Notice,
   Screen,
   SectionTitle,
-} from '../../../shared/ui';
-import { layout } from '../../../shared/theme';
+} from '@/shared/ui';
+import { layout } from '@/shared/theme';
 import {
   formatDate,
   formatFileSize,
   imageStatusLabel,
-} from '../domain/presentation';
-import { savedMeasurements, savedReport } from '../domain/measurements';
+} from '@/features/imaging/domain/presentation';
+import {
+  savedMeasurements,
+  savedReport,
+} from '@/features/imaging/domain/measurements';
 import { ImageMetadataSheet } from './ImageMetadataSheet';
 import { AnnotationHistorySheet } from './AnnotationHistorySheet';
 import { ImageViewport } from './ImageViewport';
-import { isSupportedImage } from '../domain/supportedImage';
+import { isSupportedImage } from '@/features/imaging/domain/supportedImage';
 
 export function ImageDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();

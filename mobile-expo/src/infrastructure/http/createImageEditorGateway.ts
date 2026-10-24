@@ -1,7 +1,7 @@
 import type { XieheApiSdk } from '@xiehe/api-sdk';
 import type { RequestSaveAnnotation } from '@xiehe/api-contracts/generated';
-import type { ImageEditorGateway } from '../../features/image-editor';
-import { requireSupportedImage } from '../../features/imaging/domain/supportedImage';
+import type { ImageEditorGateway } from '@/features/image-editor';
+import { requireSupportedImage } from '@/features/imaging/domain/supportedImage';
 
 export function createImageEditorGateway(
   imaging: Pick<

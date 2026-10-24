@@ -3,8 +3,8 @@ import { router } from 'expo-router';
 import type { PropsWithChildren, ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { layout } from '../../theme';
-import { IconButton } from '../icon-button';
+import { layout } from '@/shared/theme';
+import { IconButton } from '@/shared/ui/icon-button';
 
 export function Header({
   title,

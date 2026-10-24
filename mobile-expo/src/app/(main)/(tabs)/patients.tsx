@@ -1,1 +1,1 @@
-export { PatientsScreen as default } from '../../../features/patients';
+export { PatientsScreen as default } from '@/features/patients';

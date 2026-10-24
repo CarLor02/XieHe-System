@@ -1,5 +1,5 @@
 import { SvgXml } from 'react-native-svg';
-import { Icon, type IconName } from '../../../shared/ui';
+import { Icon, type IconName } from '@/shared/ui';
 import { medicalToolIcons } from './medicalToolIcons';
 
 const nativeIcons: Readonly<Record<string, IconName>> = {

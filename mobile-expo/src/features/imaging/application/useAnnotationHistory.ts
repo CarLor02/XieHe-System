@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
-import type { MobileServices } from '../../../application/services';
-import { useResource } from '../../../shared/hooks/useResource';
+import type { MobileServices } from '@/application/services';
+import { useResource } from '@/shared/hooks/useResource';
 
 export function useAnnotationHistory(
   gateway: Pick<

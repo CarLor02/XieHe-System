@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { Share, Text } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import type { ReportResponse } from '@xiehe/api-contracts/generated';
-import { useWorkspace } from '../../../application/AppProvider';
-import { useDraftNavigation } from '../../../shared/hooks/useDraftNavigation';
+import { useWorkspace } from '@/application/AppProvider';
+import { useDraftNavigation } from '@/shared/hooks/useDraftNavigation';
 import {
   Button,
   Card,
@@ -19,15 +19,15 @@ import {
   Notice,
   Screen,
   SectionTitle,
-} from '../../../shared/ui';
-import { PatientPicker } from '../../patients';
-import { reportFields } from '../application/reportForm';
+} from '@/shared/ui';
+import { PatientPicker } from '@/features/patients';
+import { reportFields } from '@/features/reports/application/reportForm';
 import {
   useReportDraft,
   useReportEditor,
-} from '../application/useReportEditor';
-import { reportStatusLabel } from '../application/useReports';
-import { layout } from '../../../shared/theme';
+} from '@/features/reports/application/useReportEditor';
+import { reportStatusLabel } from '@/features/reports/application/useReports';
+import { layout } from '@/shared/theme';
 
 export function ReportDetailScreen() {
   const { id, patientId, patientName } = useLocalSearchParams<{

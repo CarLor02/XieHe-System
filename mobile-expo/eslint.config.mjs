@@ -1,9 +1,23 @@
 import { defineConfig } from 'eslint/config';
 import expo from 'eslint-config-expo/flat.js';
 
+const parentImportRestriction = {
+  group: ['..', '../**'],
+  message: '跨目录引用请使用 @/ 别名；目录内部引用保留 ./ 相对路径。',
+};
+
 export default defineConfig([
   expo,
   { ignores: ['ui-prototype/**', 'dist/**', '.expo/**', 'expo-env.d.ts'] },
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        { patterns: [parentImportRestriction] },
+      ],
+    },
+  },
   {
     files: ['src/shared/ui/**/index.{ts,tsx}'],
     rules: {
@@ -28,18 +42,17 @@ export default defineConfig([
         'error',
         {
           paths: [
-            '..',
-            '../',
-            '../index',
-            '../index.ts',
-            '../index.tsx',
             '@/shared/ui',
+            '@/shared/ui/',
             '@/shared/ui/index',
+            '@/shared/ui/index.ts',
+            '@/shared/ui/index.tsx',
           ].map(name => ({
             name,
             message:
               '公共组件之间请通过同级组件的目录入口导入，避免依赖根入口形成循环。',
           })),
+          patterns: [parentImportRestriction],
         },
       ],
     },

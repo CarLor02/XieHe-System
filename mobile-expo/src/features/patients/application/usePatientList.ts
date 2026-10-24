@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
-import type { MobileServices } from '../../../application/services';
-import { useResource } from '../../../shared/hooks/useResource';
-import { useDebouncedValue } from '../../../shared/hooks/useDebouncedValue';
+import type { MobileServices } from '@/application/services';
+import { useResource } from '@/shared/hooks/useResource';
+import { useDebouncedValue } from '@/shared/hooks/useDebouncedValue';
 
 export function usePatientList(
   patients: Pick<MobileServices['patients'], 'list'>
