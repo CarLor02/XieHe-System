@@ -1,48 +1,70 @@
 import {
+  CircularProgressIndicator,
   Host,
-  RNHostView,
   Shape,
   TextButton,
   IconButton,
+  Row,
+  Text,
 } from '@expo/ui/jetpack-compose';
 import {
   alpha,
+  defaultMinSize,
   fillMaxWidth,
   semantics,
   size as nativeSize,
 } from '@expo/ui/jetpack-compose/modifiers';
-import { colors, interactionOpacity, radii, sizes } from '@/shared/theme';
+import {
+  colors,
+  fontSizes,
+  interactionOpacity,
+  radii,
+  sizes,
+  spacing,
+} from '@/shared/theme';
 import type { ButtonSurfaceProps } from './types';
+import { useIoniconGlyph } from './useIoniconGlyph';
 
 export function ButtonSurface({
   label,
   onPress,
   disabled,
   busy,
+  icon,
   backgroundColor,
   foregroundColor,
   size,
-  children,
 }: ButtonSurfaceProps) {
   const iconOnly = size === 'icon';
   const compact = size === 'compact';
+  const glyph = useIoniconGlyph(icon);
   const buttonColors = {
     containerColor: backgroundColor,
     contentColor: foregroundColor,
-    // 统一用透明度表达禁用，避免 Material 默认灰色覆盖应用主题。
     disabledContainerColor: backgroundColor,
     disabledContentColor: foregroundColor,
   };
   const modifiers = [
     ...(iconOnly
       ? [nativeSize(sizes.iconButton, sizes.iconButton)]
-      : compact
-        ? []
-        : [fillMaxWidth()]),
+      : [
+          ...(!compact ? [fillMaxWidth()] : []),
+          defaultMinSize({
+            minHeight: compact ? sizes.compactControl : sizes.control,
+          }),
+        ]),
     alpha(disabled ? interactionOpacity.disabled : 1),
     semantics({ contentDescription: busy ? `${label}，正在处理` : label }),
   ];
-  const content = <RNHostView matchContents>{children}</RNHostView>;
+  // 按钮内部保持纯 Compose，避免 RNHostView 让显示尺寸与原生命中区域分属两套布局。
+  const iconContent = glyph ? (
+    <Text
+      color={foregroundColor}
+      style={{ fontFamily: glyph.family, fontSize: iconOnly ? 21 : 18 }}
+    >
+      {glyph.character}
+    </Text>
+  ) : null;
   return (
     <Host
       colorScheme="light"
@@ -50,7 +72,7 @@ export function ButtonSurface({
       matchContents={iconOnly ? false : { vertical: true, horizontal: compact }}
       style={
         iconOnly
-          ? { width: sizes.iconButton, height: sizes.iconButton }
+          ? { width: sizes.iconButton, height: sizes.iconButton, flexShrink: 0 }
           : { alignSelf: 'auto' }
       }
     >
@@ -62,14 +84,19 @@ export function ButtonSurface({
           shape={Shape.Circle({})}
           modifiers={modifiers}
         >
-          {content}
+          {iconContent}
         </IconButton>
       ) : (
         <TextButton
           enabled={!disabled}
           onClick={disabled ? undefined : onPress}
           colors={buttonColors}
-          contentPadding={{ start: 0, top: 0, end: 0, bottom: 0 }}
+          contentPadding={{
+            start: spacing.md,
+            top: 0,
+            end: spacing.md,
+            bottom: 0,
+          }}
           shape={Shape.RoundedCorner({
             cornerRadii: {
               topStart: radii.control,
@@ -80,7 +107,29 @@ export function ButtonSurface({
           })}
           modifiers={modifiers}
         >
-          {content}
+          <Row
+            verticalAlignment="center"
+            horizontalArrangement={{ spacedBy: spacing.xs }}
+          >
+            {busy ? (
+              <CircularProgressIndicator
+                color={foregroundColor}
+                strokeWidth={2}
+                modifiers={[nativeSize(18, 18)]}
+              />
+            ) : (
+              iconContent
+            )}
+            <Text
+              color={foregroundColor}
+              style={{
+                fontSize: compact ? fontSizes.small : fontSizes.control,
+                fontWeight: '600',
+              }}
+            >
+              {label}
+            </Text>
+          </Row>
         </TextButton>
       )}
     </Host>

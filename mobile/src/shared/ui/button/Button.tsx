@@ -31,6 +31,7 @@ export function Button({
       label={title}
       disabled={disabled || loading}
       busy={loading}
+      icon={icon}
       onPress={onPress}
       size={compact ? 'compact' : 'regular'}
       foregroundColor={foreground}
@@ -44,7 +45,7 @@ export function Button({
               : colors.primaryLight
       }
     >
-      {/* 沿用 Ionicons 和加载指示器；触控与读屏语义由原生按钮承担。 */}
+      {/* Web 的标签；原生端从同一组属性构建原生文字、图标和进度。 */}
       <View
         aria-hidden
         accessibilityElementsHidden

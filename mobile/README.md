@@ -189,8 +189,11 @@ Web 单独使用原生 `input[type=date]`，避免 Expo 日期组件在 Web 返�
 `Button` 与 `IconButton` 的调用方式保持不变，内部通过 `button-surface/` 适配
 Expo UI：Android 使用 Compose 按钮，iOS 使用 SwiftUI 按钮，Web 使用通用按钮。
 平台适配负责 Host 布局、主题颜色、圆角和可访问名称；普通按钮随容器宽度布局，
-紧凑按钮在原生端按内容测量，图标按钮保持固定尺寸。标签继续复用现有 Ionicons，
-通过 RNHostView 嵌入原生按钮；标签自身不处理触控，避免嵌套可点击区域。
+紧凑按钮在原生端按内容测量，图标按钮保持固定尺寸。原生按钮的标签、图标和进度
+全部使用 Compose/SwiftUI 组件，不在可点击控件内部嵌套 `RNHostView`，避免两套
+布局的尺寸测量和触控命中不一致。图标复用现有 Ionicons 的字形表及字体，通过
+`expo-font` 加载；Compose 使用注册别名，SwiftUI 使用字体文件的 PostScript 名。
+Web 继续使用 RN 文字、图标和进度组件，业务调用方不需要区分平台。
 `loading` 与 `disabled` 都会禁用原生按钮及点击回调，加载时保留文字并替换图标为
 进度指示器。`button-surface` 供公共组件内部使用，业务页面继续从 `@/shared/ui`
 导入 `Button`、`IconButton`，不依赖平台 modifiers 或 Host。

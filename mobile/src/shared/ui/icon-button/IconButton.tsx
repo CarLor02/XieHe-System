@@ -19,6 +19,7 @@ export function IconButton({
   return (
     <ButtonSurface
       label={label}
+      icon={name}
       disabled={disabled}
       onPress={onPress}
       size="icon"
