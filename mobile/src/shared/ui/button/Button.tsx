@@ -1,13 +1,7 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
-import {
-  colors,
-  fontSizes,
-  interactionOpacity,
-  radii,
-  sizes,
-  spacing,
-} from '@/shared/theme';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { colors, fontSizes, sizes, spacing } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui/icon';
+import { ButtonSurface } from '@/shared/ui/button-surface';
 
 export function Button({
   title,
@@ -33,54 +27,55 @@ export function Button({
         ? colors.danger
         : colors.primary;
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={title}
-      accessibilityState={{ disabled: disabled || loading, busy: loading }}
+    <ButtonSurface
+      label={title}
       disabled={disabled || loading}
+      busy={loading}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.button,
-        {
-          backgroundColor:
-            variant === 'primary'
-              ? colors.primary
-              : variant === 'danger'
-                ? colors.dangerLight
-                : variant === 'ghost'
-                  ? 'transparent'
-                  : colors.primaryLight,
-          opacity:
-            disabled || loading
-              ? interactionOpacity.disabled
-              : pressed
-                ? interactionOpacity.pressed
-                : 1,
-          minHeight: compact ? sizes.compactControl : sizes.control,
-        },
-      ]}
+      size={compact ? 'compact' : 'regular'}
+      foregroundColor={foreground}
+      backgroundColor={
+        variant === 'primary'
+          ? colors.primary
+          : variant === 'danger'
+            ? colors.dangerLight
+            : variant === 'ghost'
+              ? 'transparent'
+              : colors.primaryLight
+      }
     >
-      {loading ? (
-        <ActivityIndicator color={foreground} size="small" />
-      ) : (
-        icon && <Icon name={icon} color={foreground} size={18} />
-      )}
-      <Text
-        style={{
-          color: foreground,
-          fontSize: compact ? fontSizes.small : fontSizes.control,
-          fontWeight: '600',
-        }}
+      {/* 沿用 Ionicons 和加载指示器；触控与读屏语义由原生按钮承担。 */}
+      <View
+        aria-hidden
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        style={[
+          styles.button,
+          { minHeight: compact ? sizes.compactControl : sizes.control },
+        ]}
       >
-        {title}
-      </Text>
-    </Pressable>
+        {loading ? (
+          <ActivityIndicator color={foreground} size="small" />
+        ) : (
+          icon && <Icon name={icon} color={foreground} size={18} />
+        )}
+        <Text
+          style={{
+            color: foreground,
+            fontSize: compact ? fontSizes.small : fontSizes.control,
+            fontWeight: '600',
+          }}
+        >
+          {title}
+        </Text>
+      </View>
+    </ButtonSurface>
   );
 }
 
 const styles = StyleSheet.create({
   button: {
-    borderRadius: radii.control,
+    pointerEvents: 'none',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

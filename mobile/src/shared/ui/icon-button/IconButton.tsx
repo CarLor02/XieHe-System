@@ -1,6 +1,7 @@
-import { Pressable, StyleSheet } from 'react-native';
-import { colors, interactionOpacity, radii, sizes } from '@/shared/theme';
+import { StyleSheet, View } from 'react-native';
+import { colors, sizes } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui/icon';
+import { ButtonSurface } from '@/shared/ui/button-surface';
 
 export function IconButton({
   name,
@@ -16,39 +17,36 @@ export function IconButton({
   disabled?: boolean;
 }) {
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ disabled }}
+    <ButtonSurface
+      label={label}
       disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.iconButton,
-        {
-          backgroundColor: light ? '#FFFFFF25' : colors.primaryLight,
-          opacity: disabled
-            ? interactionOpacity.disabled
-            : pressed
-              ? interactionOpacity.pressed
-              : 1,
-        },
-      ]}
+      size="icon"
+      backgroundColor={light ? '#FFFFFF25' : colors.primaryLight}
+      foregroundColor={light ? colors.onPrimary : colors.primary}
     >
-      <Icon
-        name={name}
-        color={light ? colors.onPrimary : colors.primary}
-        size={21}
-      />
-    </Pressable>
+      <View
+        style={styles.iconButton}
+        aria-hidden
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+      >
+        <Icon
+          name={name}
+          color={light ? colors.onPrimary : colors.primary}
+          size={21}
+        />
+      </View>
+    </ButtonSurface>
   );
 }
 
 const styles = StyleSheet.create({
   iconButton: {
+    pointerEvents: 'none',
     height: sizes.iconButton,
     width: sizes.iconButton,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radii.pill,
   },
 });
