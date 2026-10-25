@@ -3,6 +3,7 @@ export { Card } from './card';
 export { Choice } from './choice';
 export { ChoiceSheet } from './choice-sheet';
 export { Content } from './content';
+export { DateField } from './date-field';
 export { EmptyState } from './empty-state';
 export { ErrorState } from './error-state';
 export { Field } from './field';
@@ -23,6 +24,7 @@ export { SelectionList } from './selection-list';
 export { SelectionSheet } from './selection-sheet';
 export { Tag } from './tag';
 export type { IconName } from './icon';
+export type { DateFieldProps } from './date-field';
 export type {
   SelectionListProps,
   SelectionOption,

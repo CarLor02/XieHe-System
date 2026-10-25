@@ -1,5 +1,5 @@
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import { colors, layout } from '@/shared/theme';
+import { colors, layout, spacing } from '@/shared/theme';
 
 export function LoadingState({ label = '正在加载…' }: { label?: string }) {
   return (
@@ -12,9 +12,9 @@ export function LoadingState({ label = '正在加载…' }: { label?: string }) 
 
 const styles = StyleSheet.create({
   state: {
-    paddingVertical: 44,
-    paddingHorizontal: 20,
+    paddingVertical: spacing.xl,
+    paddingHorizontal: spacing.md,
     alignItems: 'center',
-    gap: 14,
+    gap: spacing.md,
   },
 });

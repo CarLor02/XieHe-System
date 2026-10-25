@@ -1,5 +1,11 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
-import { colors } from '@/shared/theme';
+import {
+  colors,
+  fontSizes,
+  interactionOpacity,
+  radii,
+  spacing,
+} from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui/icon';
 
 export function FilterChip({
@@ -13,7 +19,7 @@ export function FilterChip({
   active?: boolean;
   onPress: () => void;
 }) {
-  const foreground = active ? '#FFF' : colors.muted;
+  const foreground = active ? colors.onPrimary : colors.muted;
   return (
     <Pressable
       accessibilityRole="button"
@@ -23,7 +29,7 @@ export function FilterChip({
       style={({ pressed }) => [
         styles.chip,
         active && styles.active,
-        { opacity: pressed ? 0.7 : 1 },
+        { opacity: pressed ? interactionOpacity.pressed : 1 },
       ]}
     >
       <Icon name={icon} size={14} color={foreground} />
@@ -36,17 +42,17 @@ const styles = StyleSheet.create({
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: spacing.xs,
     alignSelf: 'flex-start',
     minHeight: 36,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: '#FFF',
-    borderRadius: 999,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    backgroundColor: colors.card,
+    borderRadius: radii.pill,
     borderWidth: 1,
     borderColor: colors.border,
     boxShadow: '0 2px 3px rgba(148,163,184,0.08)',
   },
   active: { backgroundColor: colors.primary, borderColor: colors.primary },
-  label: { fontSize: 13, fontWeight: '500' },
+  label: { fontSize: fontSizes.small, fontWeight: '500' },
 });

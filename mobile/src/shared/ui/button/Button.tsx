@@ -1,5 +1,12 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
-import { colors } from '@/shared/theme';
+import {
+  colors,
+  fontSizes,
+  interactionOpacity,
+  radii,
+  sizes,
+  spacing,
+} from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui/icon';
 
 export function Button({
@@ -21,7 +28,7 @@ export function Button({
 }) {
   const foreground =
     variant === 'primary'
-      ? '#FFF'
+      ? colors.onPrimary
       : variant === 'danger'
         ? colors.danger
         : colors.primary;
@@ -43,8 +50,13 @@ export function Button({
                 : variant === 'ghost'
                   ? 'transparent'
                   : colors.primaryLight,
-          opacity: disabled || loading ? 0.5 : pressed ? 0.75 : 1,
-          minHeight: compact ? 42 : 50,
+          opacity:
+            disabled || loading
+              ? interactionOpacity.disabled
+              : pressed
+                ? interactionOpacity.pressed
+                : 1,
+          minHeight: compact ? sizes.compactControl : sizes.control,
         },
       ]}
     >
@@ -56,7 +68,7 @@ export function Button({
       <Text
         style={{
           color: foreground,
-          fontSize: compact ? 13 : 15,
+          fontSize: compact ? fontSizes.small : fontSizes.control,
           fontWeight: '600',
         }}
       >
@@ -68,11 +80,11 @@ export function Button({
 
 const styles = StyleSheet.create({
   button: {
-    borderRadius: 14,
+    borderRadius: radii.control,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 18,
-    gap: 8,
+    paddingHorizontal: spacing.md,
+    gap: spacing.xs,
   },
 });

@@ -32,6 +32,7 @@ export function ImageMetadataSheet({
     <ChoiceSheet
       open
       title={mode === 'rename' ? '重命名影像' : '编辑影像信息'}
+      dismissible={!form.mutation.busy}
       onClose={() => {
         if (!form.mutation.busy) onClose();
       }}

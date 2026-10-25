@@ -216,6 +216,7 @@ export function TeamDetailScreen() {
         title={
           memberAction?.action === 'remove' ? '移除成员？' : '变更成员角色？'
         }
+        dismissible={!state.mutation.busy}
         onClose={() => {
           if (!state.mutation.busy) setMemberAction(null);
         }}
@@ -267,6 +268,7 @@ function InviteSheet({
     <ChoiceSheet
       open
       title="邀请成员"
+      dismissible={!mutation.busy}
       onClose={() => {
         if (!mutation.busy) onClose();
       }}

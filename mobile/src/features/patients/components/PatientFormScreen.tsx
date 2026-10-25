@@ -9,6 +9,7 @@ import { useResource } from '@/shared/hooks/useResource';
 import {
   Button,
   Card,
+  DateField,
   ErrorState,
   Field,
   FormContent,
@@ -91,13 +92,12 @@ function PatientForm({ patient }: { patient?: Patient }) {
             style={{ gap: 8 }}
           />
         </View>
-        <Field
+        <DateField
           label="出生日期"
           value={form.birth_date}
-          onChangeText={value => change('birth_date', value)}
-          placeholder="YYYY-MM-DD，例如 1990-01-15"
-          keyboardType="numbers-and-punctuation"
-          editable={!busy}
+          onChange={value => change('birth_date', value)}
+          maximumDate={new Date()}
+          disabled={busy}
         />
         <Field
           label="手机号"

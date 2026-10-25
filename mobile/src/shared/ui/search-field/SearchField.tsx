@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
-import { colors } from '@/shared/theme';
+import { colors, fontSizes, radii, sizes, spacing } from '@/shared/theme';
 import { Icon } from '@/shared/ui/icon';
 
 export function SearchField({
@@ -29,7 +29,7 @@ export function SearchField({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="清空搜索"
-          hitSlop={12}
+          hitSlop={spacing.sm}
           onPress={() => onChangeText('')}
         >
           <Icon name="close-circle" color={colors.faint} size={18} />
@@ -41,20 +41,20 @@ export function SearchField({
 
 const styles = StyleSheet.create({
   search: {
-    minHeight: 44,
+    minHeight: sizes.search,
     backgroundColor: '#FFFFFFF2',
-    borderRadius: 16,
+    borderRadius: radii.control,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    gap: 9,
+    paddingHorizontal: spacing.sm,
+    gap: spacing.xs,
     boxShadow: '0 4px 12px rgba(76,29,149,0.12)',
   },
   searchInput: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: spacing.sm,
     color: colors.text,
-    fontSize: 13,
+    fontSize: fontSizes.small,
     outlineWidth: 0,
   },
 });

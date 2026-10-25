@@ -204,6 +204,7 @@ export function ProfileScreen() {
       <ChoiceSheet
         open={confirm}
         title="确定退出登录？"
+        dismissible={!busy}
         onClose={() => {
           if (!busy) setConfirm(false);
         }}

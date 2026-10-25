@@ -204,6 +204,7 @@ export function TeamsScreen() {
       <ChoiceSheet
         open={!!target}
         title={`申请加入 ${target?.name ?? ''}`}
+        dismissible={!state.mutation.busy}
         onClose={() => {
           if (!state.mutation.busy) setTarget(null);
         }}

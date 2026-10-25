@@ -43,6 +43,7 @@ export function TeamFormSheet({
     <ChoiceSheet
       open
       title={team ? '编辑团队' : '创建团队'}
+      dismissible={!mutation.busy}
       onClose={() => {
         if (!mutation.busy) onClose();
       }}

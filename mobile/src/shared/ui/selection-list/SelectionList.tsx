@@ -1,4 +1,5 @@
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { spacing } from '@/shared/theme';
 import { Choice } from '@/shared/ui/choice';
 
 export type SelectionValue = string | number | null | undefined;
@@ -47,5 +48,5 @@ export function SelectionList<TValue extends SelectionValue>({
 }
 
 const styles = StyleSheet.create({
-  list: { gap: 10 },
+  list: { gap: spacing.sm },
 });

@@ -1,81 +1,93 @@
+import { BottomSheet } from '@expo/ui/community/bottom-sheet';
 import type { PropsWithChildren } from 'react';
 import {
-  Modal,
-  Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { layout } from '@/shared/theme';
+import { colors, layout, radii, sizes, spacing } from '@/shared/theme';
 import { IconButton } from '@/shared/ui/icon-button';
+import { SheetTitle } from './SheetTitle';
 
 export function ChoiceSheet({
   title,
   open,
   onClose,
+  dismissible = true,
   children,
-}: PropsWithChildren<{ title: string; open: boolean; onClose: () => void }>) {
+}: PropsWithChildren<{
+  title: string;
+  open: boolean;
+  onClose: () => void;
+  dismissible?: boolean;
+}>) {
   const insets = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
   return (
-    <Modal
-      visible={open}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
+    <BottomSheet
+      index={open ? 0 : -1}
+      enablePanDownToClose={dismissible}
+      enableDynamicSizing
+      backgroundStyle={styles.background}
+      onClose={() => {
+        // 程序关闭也会回调，避免旧弹层的关闭通知覆盖后续打开的弹层。
+        if (open && dismissible) onClose();
+      }}
     >
-      <View style={styles.modalBackdrop}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="关闭弹窗"
-          style={StyleSheet.absoluteFill}
-          onPress={onClose}
-        />
-        <View
-          accessibilityViewIsModal
-          style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 20) }]}
-        >
-          <View style={styles.handle} />
-          <View style={layout.between}>
-            <Text style={layout.heading}>{title}</Text>
-            <IconButton name="close" label="关闭" onPress={onClose} />
-          </View>
-          <ScrollView
-            keyboardShouldPersistTaps="handled"
-            style={{ maxHeight: 420 }}
-            contentContainerStyle={{ gap: 10, paddingTop: 16 }}
-          >
-            {children}
-          </ScrollView>
+      {/* 保留受限高度的 RN 内容区；拖动、遮罩和原生返回由 Expo UI 处理。 */}
+      <View
+        accessibilityViewIsModal
+        style={[
+          styles.sheet,
+          {
+            maxHeight: height * 0.8,
+            paddingBottom: Math.max(insets.bottom, spacing.md),
+          },
+        ]}
+      >
+        <View style={layout.between}>
+          <SheetTitle title={title} />
+          <IconButton
+            name="close"
+            label="关闭"
+            disabled={!dismissible}
+            onPress={onClose}
+          />
         </View>
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          automaticallyAdjustKeyboardInsets
+          nestedScrollEnabled
+          style={styles.scroll}
+          contentContainerStyle={styles.content}
+        >
+          {children}
+        </ScrollView>
       </View>
-    </Modal>
+    </BottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: '#0F172A66',
-    justifyContent: 'flex-end',
+  background: {
+    backgroundColor: colors.card,
+    padding: 0,
+    borderTopLeftRadius: radii.large,
+    borderTopRightRadius: radii.large,
+    maxWidth: sizes.sheetMaxWidth,
+    marginLeft: 'auto',
+    marginRight: 'auto',
   },
   sheet: {
-    backgroundColor: '#FFF',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    padding: 22,
-    maxHeight: '85%',
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.xs,
     width: '100%',
-    maxWidth: 600,
+    maxWidth: sizes.sheetMaxWidth,
     alignSelf: 'center',
   },
-  handle: {
-    width: 36,
-    height: 4,
-    backgroundColor: '#DCE1EA',
-    borderRadius: 4,
-    alignSelf: 'center',
-    marginBottom: 18,
-  },
+  scroll: { flexGrow: 0, flexShrink: 1 },
+  content: { gap: spacing.sm, paddingTop: spacing.md },
 });

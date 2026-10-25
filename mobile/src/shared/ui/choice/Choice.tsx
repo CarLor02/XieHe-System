@@ -1,5 +1,12 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
-import { colors, layout } from '@/shared/theme';
+import {
+  colors,
+  interactionOpacity,
+  layout,
+  radii,
+  sizes,
+  spacing,
+} from '@/shared/theme';
 import { Icon } from '@/shared/ui/icon';
 
 export function Choice({
@@ -25,9 +32,9 @@ export function Choice({
         styles.choice,
         selected && {
           backgroundColor: colors.primaryLight,
-          borderColor: '#D8C5FA',
+          borderColor: colors.selectedBorder,
         },
-        disabled && { opacity: 0.5 },
+        disabled && { opacity: interactionOpacity.disabled },
       ]}
       onPress={onPress}
     >
@@ -46,14 +53,14 @@ export function Choice({
 
 const styles = StyleSheet.create({
   choice: {
-    minHeight: 50,
+    minHeight: sizes.control,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 12,
-    padding: 13,
+    borderRadius: radii.control,
+    padding: spacing.sm,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 8,
+    gap: spacing.xs,
   },
 });

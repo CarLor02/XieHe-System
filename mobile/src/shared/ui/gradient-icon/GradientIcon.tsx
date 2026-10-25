@@ -1,13 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { ComponentProps } from 'react';
+import { radii } from '@/shared/theme';
 
 export function GradientIcon({
   name,
   colors,
   size = 40,
   iconSize = 20,
-  radius = 12,
+  radius = radii.control,
 }: {
   name: ComponentProps<typeof Ionicons>['name'];
   colors: readonly [string, string];

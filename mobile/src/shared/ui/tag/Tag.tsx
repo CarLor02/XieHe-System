@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { colors } from '@/shared/theme';
+import { colors, fontSizes, radii, spacing } from '@/shared/theme';
 
 export function Tag({
   text,
@@ -42,7 +42,13 @@ export function Tag({
           }}
         />
       )}
-      <Text style={{ fontSize: 10, fontWeight: '600', color: palette[1] }}>
+      <Text
+        style={{
+          fontSize: fontSizes.badge,
+          fontWeight: '600',
+          color: palette[1],
+        }}
+      >
         {text}
       </Text>
     </View>
@@ -54,9 +60,9 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 999,
+    gap: spacing.xxs,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.xxs,
+    borderRadius: radii.pill,
   },
 });

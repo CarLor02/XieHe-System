@@ -1,6 +1,6 @@
 import type { PropsWithChildren } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
-import { colors } from '@/shared/theme';
+import { colors, radii, spacing } from '@/shared/theme';
 
 export function Card({
   children,
@@ -12,8 +12,8 @@ export function Card({
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.card,
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: radii.card,
+    padding: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
     boxShadow: '0 4px 16px rgba(148,163,184,0.10)',

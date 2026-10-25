@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { layout } from '@/shared/theme';
+import { layout, spacing } from '@/shared/theme';
 
 export function InfoRow({
   label,
@@ -22,7 +22,7 @@ const styles = StyleSheet.create({
   infoRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 20,
-    paddingVertical: 10,
+    gap: spacing.md,
+    paddingVertical: spacing.sm,
   },
 });

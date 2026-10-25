@@ -230,6 +230,7 @@ function ReportForm({
       <ChoiceSheet
         open={sheet === 'delete'}
         title="删除报告？"
+        dismissible={!form.mutation.busy}
         onClose={() => {
           if (!form.mutation.busy) setSheet(null);
         }}

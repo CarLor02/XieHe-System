@@ -166,6 +166,26 @@ ui-prototype/             # 独立 Vite HTML 原型，不参与 Expo 编译和�
 性别和报告状态的选项定义、查询与分页重置继续留在所属业务模块。表单复用单选列表，
 保留内嵌布局；整个列表或单个选项可禁用，“全部”选项可使用空字符串或 `undefined`。
 
+`ChoiceSheet` 使用已有 `@expo/ui/community/bottom-sheet`：Android/iOS 使用原生弹层，
+Web 使用其 Vaul 实现。公共入口仍是 `title / open / onClose / children`，新增可选
+`dismissible`（默认 `true`）。保存或删除期间应传入 `dismissible={!busy}`，同时锁定
+拖动、遮罩、返回和关闭按钮，不能只依赖 `onClose` 内的忙碌判断。
+弹层保留受限高度的滚动内容区；业务查询、分页和选项状态不进入公共组件。
+Web 标题与读屏说明使用同一个 Vaul 上下文，因此将 Expo UI 已依赖的 `vaul` 显式声明为
+直接依赖；没有引入新的组件框架或升级现有依赖版本。
+
+日期字段通过 `@/shared/ui` 或 `@/shared/ui/date-field` 使用 `DateField`。
+它接收 `label / value / onChange`，值为 `YYYY-MM-DD`，清空回调为空字符串；
+可选 `minimumDate / maximumDate / disabled / clearable / error`。
+Android 使用原生日期对话框，iOS 使用滚轮与显式确认，取消不会提交草稿；
+Web 单独使用原生 `input[type=date]`，避免 Expo 日期组件在 Web 返回空内容。
+平台适配按本地日历日期转换，不通过 UTC 时间戳截取日期。患者出生日期上限由患者表单
+传入今天，后端请求中的 `null`、日期合法性和未来日期校验仍由原有表单规则负责。
+
+公共组件的颜色、间距、圆角、字号、控件尺寸和按压/禁用透明度统一来自
+`src/shared/theme.ts`；`Field` 与 `DateField` 共用字段样式。业务专属布局和影像画布
+样式仍留在所属模块。
+
 HTTP DTO 和 endpoint 继续归属于共享 contracts / SDK；患者查询展示、登录校验、标注
 解码及分片上传协调复用已有公共包。页面不得自行创建 Axios 实例或引入 HTML 原型代码。
 

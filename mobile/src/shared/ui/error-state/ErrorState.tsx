@@ -1,5 +1,5 @@
-import { StyleSheet, Text, View } from 'react-native';
-import { colors } from '@/shared/theme';
+import { Text, View } from 'react-native';
+import { fieldStyles, spacing } from '@/shared/theme';
 import { Card } from '@/shared/ui/card';
 import { Button } from '@/shared/ui/button';
 
@@ -12,8 +12,8 @@ export function ErrorState({
 }) {
   return (
     <Card>
-      <View accessibilityRole="alert" style={{ gap: 14 }}>
-        <Text style={styles.errorText}>{message}</Text>
+      <View accessibilityRole="alert" style={{ gap: spacing.md }}>
+        <Text style={fieldStyles.error}>{message}</Text>
         {onRetry && (
           <Button
             title="重新加载"
@@ -27,7 +27,3 @@ export function ErrorState({
     </Card>
   );
 }
-
-const styles = StyleSheet.create({
-  errorText: { fontSize: 13, lineHeight: 21, color: colors.danger },
-});

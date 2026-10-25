@@ -1,6 +1,6 @@
 import type { PropsWithChildren } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { colors, layout } from '@/shared/theme';
+import { colors, layout, radii, spacing } from '@/shared/theme';
 import { Icon } from '@/shared/ui/icon';
 
 export function Notice({
@@ -41,8 +41,8 @@ const styles = StyleSheet.create({
   notice: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 8,
-    padding: 13,
-    borderRadius: 13,
+    gap: spacing.xs,
+    padding: spacing.sm,
+    borderRadius: radii.control,
   },
 });

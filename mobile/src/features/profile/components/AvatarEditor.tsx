@@ -57,6 +57,7 @@ export function AvatarEditor() {
       <ChoiceSheet
         open={remove}
         title="移除当前头像？"
+        dismissible={!mutation.busy}
         onClose={() => {
           if (!mutation.busy) setRemove(false);
         }}

@@ -153,6 +153,7 @@ export function PatientDetailScreen() {
       <ChoiceSheet
         open={deleting}
         title="删除患者档案？"
+        dismissible={!mutation.busy}
         onClose={() => {
           if (!mutation.busy) setDeleting(false);
         }}

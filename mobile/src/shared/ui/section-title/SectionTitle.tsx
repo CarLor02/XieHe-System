@@ -1,5 +1,5 @@
 import { Pressable, Text, View } from 'react-native';
-import { colors, layout } from '@/shared/theme';
+import { colors, fontSizes, layout, spacing } from '@/shared/theme';
 
 export function SectionTitle({
   title,
@@ -19,9 +19,11 @@ export function SectionTitle({
         <Pressable
           accessibilityRole="button"
           onPress={onPress}
-          style={{ paddingVertical: 8 }}
+          style={{ paddingVertical: spacing.xs }}
         >
-          <Text style={{ color: colors.primary, fontSize: 12 }}>{action}</Text>
+          <Text style={{ color: colors.primary, fontSize: fontSizes.caption }}>
+            {action}
+          </Text>
         </Pressable>
       )}
     </View>

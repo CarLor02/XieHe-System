@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { colors, layout } from '@/shared/theme';
+import { colors, layout, radii, spacing } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui/icon';
 import { Button } from '@/shared/ui/button';
 
@@ -42,15 +42,15 @@ export function EmptyState({
 
 const styles = StyleSheet.create({
   state: {
-    paddingVertical: 44,
-    paddingHorizontal: 20,
+    paddingVertical: spacing.xl,
+    paddingHorizontal: spacing.md,
     alignItems: 'center',
-    gap: 14,
+    gap: spacing.md,
   },
   emptyIcon: {
     width: 72,
     height: 72,
-    borderRadius: 22,
+    borderRadius: radii.large,
     backgroundColor: colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',

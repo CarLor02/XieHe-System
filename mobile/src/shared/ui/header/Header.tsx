@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import type { PropsWithChildren, ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { layout } from '@/shared/theme';
+import { colors, fontSizes, layout, spacing } from '@/shared/theme';
 import { IconButton } from '@/shared/ui/icon-button';
 
 export function Header({
@@ -28,10 +28,10 @@ export function Header({
       end={{ x: 1, y: 0 }}
       style={[
         styles.header,
-        { paddingTop: Math.max(insets.top, 16) + 12 },
+        { paddingTop: Math.max(insets.top, spacing.md) + spacing.sm },
         roundedBottom && {
-          borderBottomLeftRadius: 32,
-          borderBottomRightRadius: 32,
+          borderBottomLeftRadius: spacing.xl,
+          borderBottomRightRadius: spacing.xl,
         },
       ]}
     >
@@ -58,18 +58,22 @@ export function Header({
         </View>
         {right}
       </View>
-      {!!children && <View style={{ marginTop: 16 }}>{children}</View>}
+      {!!children && <View style={{ marginTop: spacing.md }}>{children}</View>}
     </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  header: { paddingHorizontal: 16, paddingBottom: 24 },
-  headerTitle: { color: '#FFF', fontSize: 20, fontWeight: '700' },
+  header: { paddingHorizontal: spacing.md, paddingBottom: spacing.lg },
+  headerTitle: {
+    color: colors.onPrimary,
+    fontSize: fontSizes.title,
+    fontWeight: '700',
+  },
   headerSubtitle: {
     color: '#E9DDFF',
-    fontSize: 12,
-    marginTop: 5,
+    fontSize: fontSizes.caption,
+    marginTop: spacing.xxs,
     lineHeight: 18,
   },
 });
