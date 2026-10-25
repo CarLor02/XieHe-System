@@ -14,6 +14,7 @@ export { Header } from './header';
 export { Icon } from './icon';
 export { IconButton } from './icon-button';
 export { InfoRow } from './info-row';
+export { ListToolbar } from './list-toolbar';
 export { LoadingState } from './loading-state';
 export { Notice } from './notice';
 export { Pagination } from './pagination';

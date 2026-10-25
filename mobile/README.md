@@ -186,6 +186,13 @@ Web 单独使用原生 `input[type=date]`，避免 Expo 日期组件在 Web 返�
 `src/shared/theme.ts`；`Field` 与 `DateField` 共用字段样式。业务专属布局和影像画布
 样式仍留在所属模块。
 
+四个 Tab 共用 `Header` 的紫色背景和默认 64dp 标题行，顶部安全区单独计算，
+不在 Header 内嵌搜索、筛选或问候内容，也不使用底部圆角。标题行使用最小高度，
+大字体和长标题可以自然增高；二级页面仍可显示副标题和返回按钮。
+患者中心与影像中心通过公共 `ListToolbar` 在 Header 下方放置搜索和筛选，
+与 `Content` 滚动区同级，保持工具区固定。列表数量提示在内容区顶部，
+工作台问候与日期也随内容滚动；查询、分页和筛选状态仍由业务模块管理。
+
 `Button` 与 `IconButton` 的调用方式保持不变，内部通过 `button-surface/` 适配
 Expo UI：Android 使用 Compose 按钮，iOS 使用 SwiftUI 按钮，Web 使用通用按钮。
 平台适配负责 Host 布局、主题颜色、圆角和可访问名称；普通按钮随容器宽度布局，

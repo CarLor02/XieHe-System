@@ -92,7 +92,6 @@ export function ProfileScreen() {
     <Screen>
       <Header
         title="个人中心"
-        roundedBottom
         right={
           <IconButton
             name="notifications-outline"

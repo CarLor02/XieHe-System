@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { RefreshControl, View } from 'react-native';
+import { RefreshControl, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { useWorkspace } from '@/application/AppProvider';
 import { usePatientList } from '@/features/patients/application/usePatientList';
@@ -9,13 +9,14 @@ import {
   ErrorState,
   Header,
   IconButton,
+  ListToolbar,
   LoadingState,
   Pagination,
   Screen,
   SearchField,
   SelectionSheet,
 } from '@/shared/ui';
-import { colors } from '@/shared/theme';
+import { colors, layout } from '@/shared/theme';
 import { FilterChip } from '@/shared/ui/filter-chip';
 import { PatientCard } from './PatientCard';
 import { genderFilterOptions } from './patientSelectionOptions';
@@ -37,11 +38,6 @@ export function PatientsScreen() {
     <Screen>
       <Header
         title="患者中心"
-        subtitle={
-          resource.data
-            ? `${resource.data.total} 位患者`
-            : '管理患者档案与检查记录'
-        }
         right={
           <IconButton
             name="add"
@@ -50,13 +46,23 @@ export function PatientsScreen() {
             onPress={() => router.push('/patients/new')}
           />
         }
+      />
+      <ListToolbar
+        search={
+          <SearchField
+            value={search}
+            onChangeText={changeSearch}
+            placeholder="搜索患者姓名、ID或手机号"
+          />
+        }
       >
-        <SearchField
-          value={search}
-          onChangeText={changeSearch}
-          placeholder="搜索患者姓名、ID或手机号"
+        <FilterChip
+          title={`性别: ${gender || '全部'}`}
+          active={!!gender}
+          icon="filter-outline"
+          onPress={() => setFilterOpen(true)}
         />
-      </Header>
+      </ListToolbar>
       <Content
         refreshControl={
           <RefreshControl
@@ -66,14 +72,11 @@ export function PatientsScreen() {
           />
         }
       >
-        <View>
-          <FilterChip
-            title={`性别: ${gender || '全部'}`}
-            active={!!gender}
-            icon="filter-outline"
-            onPress={() => setFilterOpen(true)}
-          />
-        </View>
+        <Text style={layout.muted}>
+          {resource.data
+            ? `${resource.data.total} 位患者`
+            : '管理患者档案与检查记录'}
+        </Text>
         {!!resource.error && (
           <ErrorState
             message={resource.error}

@@ -34,6 +34,7 @@ export const fontSizes = {
   title: 20,
 };
 export const sizes = {
+  header: 64,
   control: 50,
   compactControl: 42,
   iconButton: 44,

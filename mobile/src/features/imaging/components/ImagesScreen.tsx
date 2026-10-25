@@ -13,6 +13,7 @@ import {
   ErrorState,
   Header,
   IconButton,
+  ListToolbar,
   LoadingState,
   Pagination,
   Screen,
@@ -67,13 +68,7 @@ export function ImagesScreen({
     <Screen>
       <Header
         title={patientId ? '患者影像' : '影像中心'}
-        subtitle={
-          patientId
-            ? patientName
-            : resource.data
-              ? `${resource.data.total} 份影像`
-              : '查看与管理检查影像'
-        }
+        subtitle={patientId ? patientName : undefined}
         back={!!patientId}
         right={
           <IconButton
@@ -92,18 +87,34 @@ export function ImagesScreen({
             }
           />
         }
-      >
-        {!patientId && (
-          <SearchField
-            value={search}
-            onChangeText={value => {
-              setSearch(value);
-              setPage(1);
-            }}
-            placeholder="搜索患者姓名、检查类型或文件名"
+      />
+      {!patientId && (
+        <ListToolbar
+          search={
+            <SearchField
+              value={search}
+              onChangeText={value => {
+                setSearch(value);
+                setPage(1);
+              }}
+              placeholder="搜索患者姓名、检查类型或文件名"
+            />
+          }
+        >
+          <FilterChip
+            title={type || '全部类型'}
+            icon="options-outline"
+            active={!!type}
+            onPress={() => setSheet('type')}
           />
-        )}
-      </Header>
+          <FilterChip
+            title={status ? imageStatusLabel(status) : '全部状态'}
+            icon="checkmark-circle-outline"
+            active={!!status}
+            onPress={() => setSheet('status')}
+          />
+        </ListToolbar>
+      )}
       <Content
         refreshControl={
           <RefreshControl
@@ -114,20 +125,11 @@ export function ImagesScreen({
         }
       >
         {!patientId && (
-          <View style={layout.row}>
-            <FilterChip
-              title={type || '全部类型'}
-              icon="options-outline"
-              active={!!type}
-              onPress={() => setSheet('type')}
-            />
-            <FilterChip
-              title={status ? imageStatusLabel(status) : '全部状态'}
-              icon="checkmark-circle-outline"
-              active={!!status}
-              onPress={() => setSheet('status')}
-            />
-          </View>
+          <Text style={layout.muted}>
+            {resource.data
+              ? `${resource.data.total} 份影像`
+              : '查看与管理检查影像'}
+          </Text>
         )}
         {!!patientId && resource.data && (
           <Text style={layout.muted}>共 {resource.data.total} 份检查影像</Text>

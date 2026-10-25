@@ -11,7 +11,9 @@ import {
   Content,
   EmptyState,
   ErrorState,
+  Header,
   Icon,
+  IconButton,
   LoadingState,
   Screen,
   type IconName,
@@ -20,7 +22,7 @@ import { GradientIcon } from '@/shared/ui/gradient-icon';
 import { colors, layout } from '@/shared/theme';
 import { useDashboard } from '@/features/dashboard/application/useDashboard';
 import { ActivityList } from './ActivityList';
-import { DashboardHeader } from './DashboardHeader';
+import { DashboardGreeting } from './DashboardGreeting';
 import { DashboardSection } from './DashboardSection';
 import { PendingTaskList } from './PendingTaskList';
 
@@ -78,7 +80,17 @@ export function DashboardScreen() {
   ];
   return (
     <Screen>
-      <DashboardHeader user={user} />
+      <Header
+        title="工作台"
+        right={
+          <IconButton
+            name="notifications-outline"
+            label="消息通知"
+            light
+            onPress={() => router.push('/messages')}
+          />
+        }
+      />
       <Content
         refreshControl={
           <RefreshControl
@@ -87,8 +99,9 @@ export function DashboardScreen() {
             tintColor={colors.primary}
           />
         }
-        contentContainerStyle={{ gap: 20, paddingTop: 20 }}
+        contentContainerStyle={{ gap: 20 }}
       >
+        <DashboardGreeting user={user} />
         <View style={{ gap: 12 }}>
           <Text accessibilityRole="header" style={styles.sectionTitle}>
             数据概览

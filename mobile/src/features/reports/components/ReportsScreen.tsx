@@ -10,6 +10,7 @@ import {
   Header,
   Icon,
   IconButton,
+  ListToolbar,
   LoadingState,
   Pagination,
   Screen,
@@ -60,18 +61,13 @@ export function ReportsScreen() {
             }
           />
         }
-      >
-        <SearchField
-          value={reports.search}
-          onChangeText={reports.searchFor}
-          placeholder="搜索报告或患者"
-        />
-      </Header>
-      <Content
-        refreshControl={
-          <RefreshControl
-            refreshing={reports.loading && !!reports.data}
-            onRefresh={() => void reports.reload()}
+      />
+      <ListToolbar
+        search={
+          <SearchField
+            value={reports.search}
+            onChangeText={reports.searchFor}
+            placeholder="搜索报告或患者"
           />
         }
       >
@@ -81,6 +77,15 @@ export function ReportsScreen() {
           active={!!reports.status}
           onPress={() => setFilterOpen(true)}
         />
+      </ListToolbar>
+      <Content
+        refreshControl={
+          <RefreshControl
+            refreshing={reports.loading && !!reports.data}
+            onRefresh={() => void reports.reload()}
+          />
+        }
+      >
         {reports.loading && !reports.data && <LoadingState />}
         {!!reports.error && (
           <ErrorState
