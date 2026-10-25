@@ -207,11 +207,15 @@ Web 继续使用 RN 文字、图标和进度组件，业务调用方不需要区
 进度指示器。`button-surface` 供公共组件内部使用，业务页面继续从 `@/shared/ui`
 导入 `Button`、`IconButton`，不依赖平台 modifiers 或 Host。
 
-`FilterChip` 同样通过 `button-surface/` 的胶囊样式适配 Compose/SwiftUI 原生按钮，
-保留公共主题中的颜色、文字、间距、圆角与外层边框/轻阴影。`active` 由业务调用方
-控制，点击只触发 `onPress` 打开现有选择器，不在组件内切换筛选值。Android 通过
+`FilterChip` 通过 `button-surface/` 适配 Compose 可点击 Surface / SwiftUI 按钮，
+保留公共主题中的颜色、文字、间距、圆角与轻阴影。背景、边框和点击反馈由同一个
+原生轮廓负责，不在外层 RN 容器中再画一个胶囊。内容最小高度为 48dp，避免 Compose
+为触控目标额外补留白后出现内外两层胶囊。各端统一最小宽度 136dp、水平内边距 16dp，
+图标和文字居中；常见短选项保持相同宽度，长文字及大字体仍允许自然撑开。
+`active` 由业务调用方控制，点击只触发 `onPress` 打开现有选择器，不在组件内切换
+筛选值。Android 通过
 按钮描述朗读筛选状态，iOS 使用选中辅助功能特征；Web 保留可声明选中状态的
-RN 按钮适配。原生端保留系统最小触控尺寸，大字体可自然增高，不强行裁切按钮。
+RN 按钮适配。大字体可自然增高，不强行裁切按钮。
 搜索框仍使用现有 `SearchField`，查询与分页流程不随按钮迁移。
 
 HTTP DTO 和 endpoint 继续归属于共享 contracts / SDK；患者查询展示、登录校验、标注

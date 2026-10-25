@@ -15,6 +15,7 @@ import {
   opacity,
   padding,
   shapes,
+  strokeBorder,
   tint,
 } from '@expo/ui/swift-ui/modifiers';
 import {
@@ -22,6 +23,7 @@ import {
   fontSizes,
   interactionOpacity,
   radii,
+  shadows,
   sizes,
   spacing,
 } from '@/shared/theme';
@@ -55,7 +57,13 @@ export function ButtonSurface({
       style={
         iconOnly
           ? { width: sizes.iconButton, height: sizes.iconButton, flexShrink: 0 }
-          : { alignSelf: chip ? 'flex-start' : 'auto' }
+          : chip
+            ? {
+                alignSelf: 'flex-start',
+                borderRadius: radii.pill,
+                boxShadow: shadows.filterChip,
+              }
+            : { alignSelf: 'auto' }
       }
     >
       <Button
@@ -81,13 +89,23 @@ export function ButtonSurface({
               ? frame({ width: sizes.iconButton, height: sizes.iconButton })
               : frame({
                   minHeight: chip
-                    ? sizes.filterChip - 2
+                    ? sizes.filterChip
                     : compact
                       ? sizes.compactControl
                       : sizes.control,
+                  ...(chip ? { minWidth: sizes.filterChipMinWidth } : {}),
                   ...(!compact ? { maxWidth: Infinity } : {}),
                 }),
             background(backgroundColor, shape),
+            ...(chip
+              ? [
+                  strokeBorder({
+                    content: selected ? colors.primary : colors.border,
+                    style: { lineWidth: 1 },
+                    shape: 'capsule',
+                  }),
+                ]
+              : []),
             contentShape(shape),
           ]}
         >

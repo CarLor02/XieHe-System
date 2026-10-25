@@ -6,11 +6,14 @@ import {
   IconButton,
   Row,
   Text,
+  Box,
+  Surface,
 } from '@expo/ui/jetpack-compose';
 import {
   alpha,
   defaultMinSize,
   fillMaxWidth,
+  padding,
   semantics,
   size as nativeSize,
 } from '@expo/ui/jetpack-compose/modifiers';
@@ -19,6 +22,7 @@ import {
   fontSizes,
   interactionOpacity,
   radii,
+  shadows,
   sizes,
   spacing,
 } from '@/shared/theme';
@@ -39,7 +43,6 @@ export function ButtonSurface({
   const iconOnly = size === 'icon';
   const chip = size === 'chip';
   const compact = size === 'compact' || chip;
-  const cornerRadius = chip ? radii.pill : radii.control;
   const glyph = useIoniconGlyph(icon);
   const buttonColors = {
     containerColor: backgroundColor,
@@ -50,16 +53,14 @@ export function ButtonSurface({
   const modifiers = [
     ...(iconOnly
       ? [nativeSize(sizes.iconButton, sizes.iconButton)]
-      : [
-          ...(!compact ? [fillMaxWidth()] : []),
-          defaultMinSize({
-            minHeight: chip
-              ? sizes.filterChip - 2
-              : compact
-                ? sizes.compactControl
-                : sizes.control,
-          }),
-        ]),
+      : chip
+        ? []
+        : [
+            ...(!compact ? [fillMaxWidth()] : []),
+            defaultMinSize({
+              minHeight: compact ? sizes.compactControl : sizes.control,
+            }),
+          ]),
     alpha(disabled ? interactionOpacity.disabled : 1),
     semantics({
       // 当前 Expo semantics 未开放 selected，直接朗读条件状态，保留按钮的动作语义。
@@ -82,6 +83,31 @@ export function ButtonSurface({
       {glyph.character}
     </Text>
   ) : null;
+  const content = (
+    <Row
+      verticalAlignment="center"
+      horizontalArrangement={{ spacedBy: spacing.xs }}
+    >
+      {busy ? (
+        <CircularProgressIndicator
+          color={foregroundColor}
+          strokeWidth={2}
+          modifiers={[nativeSize(18, 18)]}
+        />
+      ) : (
+        iconContent
+      )}
+      <Text
+        color={foregroundColor}
+        style={{
+          fontSize: compact ? fontSizes.small : fontSizes.control,
+          fontWeight: chip ? '500' : '600',
+        }}
+      >
+        {label}
+      </Text>
+    </Row>
+  );
   return (
     <Host
       colorScheme="light"
@@ -90,10 +116,50 @@ export function ButtonSurface({
       style={
         iconOnly
           ? { width: sizes.iconButton, height: sizes.iconButton, flexShrink: 0 }
-          : { alignSelf: chip ? 'flex-start' : 'auto' }
+          : chip
+            ? {
+                alignSelf: 'flex-start',
+                borderRadius: radii.pill,
+                boxShadow: shadows.filterChip,
+              }
+            : { alignSelf: 'auto' }
       }
     >
-      {iconOnly ? (
+      {chip ? (
+        <Surface
+          enabled={!disabled}
+          onClick={disabled ? undefined : onPress}
+          color={backgroundColor}
+          contentColor={foregroundColor}
+          border={{
+            width: 1,
+            color: selected ? colors.primary : colors.border,
+          }}
+          shape={Shape.RoundedCorner({
+            cornerRadii: {
+              topStart: radii.pill,
+              topEnd: radii.pill,
+              bottomStart: radii.pill,
+              bottomEnd: radii.pill,
+            },
+          })}
+          modifiers={modifiers}
+        >
+          {/* 内容本身达到最小触控尺寸，避免 Surface 在轮廓外补留白形成双层胶囊。 */}
+          <Box
+            contentAlignment="center"
+            modifiers={[
+              defaultMinSize({
+                minWidth: sizes.filterChipMinWidth,
+                minHeight: sizes.filterChip,
+              }),
+              padding(spacing.md, spacing.xs, spacing.md, spacing.xs),
+            ]}
+          >
+            {content}
+          </Box>
+        </Surface>
+      ) : iconOnly ? (
         <IconButton
           enabled={!disabled}
           onClick={disabled ? undefined : onPress}
@@ -113,43 +179,21 @@ export function ButtonSurface({
           colors={buttonColors}
           contentPadding={{
             start: spacing.md,
-            top: chip ? spacing.xs : 0,
+            top: 0,
             end: spacing.md,
-            bottom: chip ? spacing.xs : 0,
+            bottom: 0,
           }}
           shape={Shape.RoundedCorner({
             cornerRadii: {
-              topStart: cornerRadius,
-              topEnd: cornerRadius,
-              bottomStart: cornerRadius,
-              bottomEnd: cornerRadius,
+              topStart: radii.control,
+              topEnd: radii.control,
+              bottomStart: radii.control,
+              bottomEnd: radii.control,
             },
           })}
           modifiers={modifiers}
         >
-          <Row
-            verticalAlignment="center"
-            horizontalArrangement={{ spacedBy: spacing.xs }}
-          >
-            {busy ? (
-              <CircularProgressIndicator
-                color={foregroundColor}
-                strokeWidth={2}
-                modifiers={[nativeSize(18, 18)]}
-              />
-            ) : (
-              iconContent
-            )}
-            <Text
-              color={foregroundColor}
-              style={{
-                fontSize: compact ? fontSizes.small : fontSizes.control,
-                fontWeight: chip ? '500' : '600',
-              }}
-            >
-              {label}
-            </Text>
-          </Row>
+          {content}
         </TextButton>
       )}
     </Host>

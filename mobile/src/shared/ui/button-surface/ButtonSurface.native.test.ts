@@ -58,6 +58,8 @@ vi.mock('@expo/ui/jetpack-compose', async () => {
         'Row',
         'Text',
         'CircularProgressIndicator',
+        'Box',
+        'Surface',
       ].map(kind => [kind, view(kind)])
     ),
     Shape: {
@@ -78,9 +80,14 @@ vi.mock('@expo/ui/jetpack-compose', async () => {
 });
 vi.mock('@expo/ui/jetpack-compose/modifiers', () =>
   Object.fromEntries(
-    ['alpha', 'defaultMinSize', 'fillMaxWidth', 'semantics', 'size'].map(
-      kind => [kind, (...values: unknown[]) => ({ kind, values })]
-    )
+    [
+      'alpha',
+      'defaultMinSize',
+      'fillMaxWidth',
+      'padding',
+      'semantics',
+      'size',
+    ].map(kind => [kind, (...values: unknown[]) => ({ kind, values })])
   )
 );
 vi.mock('@expo/ui/swift-ui', async () => {
@@ -118,6 +125,7 @@ vi.mock('@expo/ui/swift-ui/modifiers', () => ({
       'frame',
       'opacity',
       'padding',
+      'strokeBorder',
       'tint',
     ].map(kind => [kind, (...values: unknown[]) => ({ kind, values })])
   ),
@@ -260,7 +268,7 @@ describe.each([
         })
       );
       const control = native.views.find(view =>
-        ['TextButton', 'Button'].includes(view.kind)
+        ['Surface', 'Button'].includes(view.kind)
       );
       expect(control).toBeDefined();
       expect(
@@ -274,16 +282,10 @@ describe.each([
         )
       ).toBe(true);
 
-      // 边框/阴影只有一个外层；原生按钮负责全部点击，未嵌套 RN 标签或另一个点击目标。
-      const frames = native.views.filter(view => view.kind === 'RNFrame');
-      expect(frames).toHaveLength(1);
-      expect(
-        Object.assign({}, ...(frames[0].props.style as object[]))
-      ).toMatchObject({
-        backgroundColor: active ? colors.primary : colors.card,
-        borderColor: active ? colors.primary : colors.border,
-        borderRadius: radii.pill,
-      });
+      // 不再由另一层 RN 容器画出更大的胶囊；背景、边框与反馈属于同一个原生轮廓。
+      expect(native.views.filter(view => view.kind === 'RNFrame')).toHaveLength(
+        0
+      );
 
       const nativeModifiers = control!.props.modifiers as {
         kind: string;
@@ -298,10 +300,20 @@ describe.each([
             bottomEnd: radii.pill,
           },
         });
-        expect(control!.props.colors).toMatchObject({
-          containerColor: active ? colors.primary : colors.card,
+        expect(control!.props).toMatchObject({
+          color: active ? colors.primary : colors.card,
           contentColor: active ? colors.onPrimary : colors.muted,
+          border: { color: active ? colors.primary : colors.border, width: 1 },
         });
+        const contentModifiers = native.views.find(view => view.kind === 'Box')
+          ?.props.modifiers as { kind: string; values: unknown[] }[];
+        // 内容自身达到触控下限，Surface 无需在可见轮廓外补出空白。
+        expect(
+          contentModifiers.find(modifier => modifier.kind === 'defaultMinSize')
+            ?.values
+        ).toEqual([
+          { minWidth: sizes.filterChipMinWidth, minHeight: sizes.filterChip },
+        ]);
         expect(
           nativeModifiers.find(modifier => modifier.kind === 'semantics')
             ?.values
@@ -309,6 +321,24 @@ describe.each([
           { contentDescription: active ? `${title}，已筛选` : title },
         ]);
       } else {
+        const contentModifiers = native.views.find(
+          view => view.kind === 'HStack'
+        )?.props.modifiers as { kind: string; values: unknown[] }[];
+        expect(
+          contentModifiers.find(modifier => modifier.kind === 'frame')?.values
+        ).toEqual([
+          { minWidth: sizes.filterChipMinWidth, minHeight: sizes.filterChip },
+        ]);
+        expect(
+          contentModifiers.find(modifier => modifier.kind === 'strokeBorder')
+            ?.values
+        ).toEqual([
+          {
+            content: active ? colors.primary : colors.border,
+            shape: 'capsule',
+            style: { lineWidth: 1 },
+          },
+        ]);
         expect(
           nativeModifiers.some(
             modifier =>

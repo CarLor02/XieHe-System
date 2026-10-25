@@ -1,6 +1,12 @@
 import { Button, Host } from '@expo/ui';
 import { Pressable, StyleSheet, Text } from 'react-native';
-import { colors, interactionOpacity, radii, sizes } from '@/shared/theme';
+import {
+  colors,
+  interactionOpacity,
+  radii,
+  shadows,
+  sizes,
+} from '@/shared/theme';
 import type { ButtonSurfaceProps } from './types';
 
 // Web 使用 Expo 通用按钮；原生入口分别处理 Compose 和 SwiftUI 的主题与布局。
@@ -28,6 +34,14 @@ export function ButtonSurface({
         style={({ pressed }) => ({
           backgroundColor,
           borderRadius: radii.pill,
+          borderWidth: 1,
+          borderColor: selected ? colors.primary : colors.border,
+          boxShadow: shadows.filterChip,
+          minWidth: sizes.filterChipMinWidth,
+          minHeight: sizes.filterChip,
+          alignSelf: 'flex-start',
+          alignItems: 'center',
+          justifyContent: 'center',
           opacity: disabled
             ? interactionOpacity.disabled
             : pressed

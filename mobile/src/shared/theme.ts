@@ -38,12 +38,16 @@ export const sizes = {
   control: 50,
   compactControl: 42,
   iconButton: 44,
-  filterChip: 36,
+  filterChip: 48,
+  filterChipMinWidth: 136,
   search: 44,
   multilineInput: 100,
   sheetMaxWidth: 600,
 };
 export const interactionOpacity = { disabled: 0.5, pressed: 0.75 };
+export const shadows = {
+  filterChip: '0 2px 3px rgba(148,163,184,0.08)',
+};
 
 export const layout = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
