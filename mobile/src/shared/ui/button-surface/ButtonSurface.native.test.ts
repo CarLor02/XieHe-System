@@ -1,7 +1,8 @@
 import { createElement, type ComponentType, type ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { sizes } from '@/shared/theme';
+import { colors, radii, sizes } from '@/shared/theme';
+import { FilterChip } from '@/shared/ui/filter-chip';
 import { ButtonSurface as AndroidButton } from './ButtonSurface.android';
 import { ButtonSurface as IOSButton } from './ButtonSurface.ios';
 import type { ButtonSurfaceProps } from './types';
@@ -12,15 +13,32 @@ const native = vi.hoisted(() => ({
   views: [] as { kind: string; props: Record<string, unknown> }[],
 }));
 
-vi.mock('react-native', () => ({
-  Platform: native.platform,
-  StyleSheet: { create: (styles: unknown) => styles },
+vi.mock('react-native', async () => {
+  const { createElement, Fragment } = await import('react');
+  return {
+    Platform: native.platform,
+    StyleSheet: { create: (styles: unknown) => styles },
+    View: (props: Record<string, unknown>) => {
+      native.views.push({ kind: 'RNFrame', props });
+      return createElement(Fragment, null, props.children as ReactNode);
+    },
+    Text: () => {
+      throw new Error('原生按钮不能渲染 RN 文字');
+    },
+  };
+});
+vi.mock('@/shared/ui/button-surface', () => ({
+  ButtonSurface: (props: ButtonSurfaceProps) =>
+    createElement(
+      native.platform.OS === 'android' ? AndroidButton : IOSButton,
+      props
+    ),
 }));
 vi.mock('expo-font', () => ({ useFonts: () => [native.fontLoaded, null] }));
 vi.mock('@expo/vector-icons', () => ({
   Ionicons: {
     font: { ionicons: 1 },
-    glyphMap: { add: 43, 'arrow-back': '←' },
+    glyphMap: { add: 43, 'arrow-back': '←', 'filter-outline': 'F' },
     getFontFamily: () => 'ionicons',
   },
 }));
@@ -47,7 +65,10 @@ vi.mock('@expo/ui/jetpack-compose', async () => {
         type: 'circle',
         ...props,
       }),
-      RoundedCorner: () => ({}),
+      RoundedCorner: (props: Record<string, unknown>) => ({
+        type: 'roundedCorner',
+        ...props,
+      }),
     },
     // 原生按钮必须在同一个布局/触控树内完成；这个约束防止再次引入混合标签。
     RNHostView: () => {
@@ -84,6 +105,7 @@ vi.mock('@expo/ui/swift-ui/modifiers', () => ({
   ...Object.fromEntries(
     [
       'accessibilityElement',
+      'accessibilityAddTraits',
       'accessibilityHidden',
       'accessibilityLabel',
       'accessibilityValue',
@@ -99,7 +121,7 @@ vi.mock('@expo/ui/swift-ui/modifiers', () => ({
       'tint',
     ].map(kind => [kind, (...values: unknown[]) => ({ kind, values })])
   ),
-  shapes: { roundedRectangle: () => ({}) },
+  shapes: { roundedRectangle: (props: Record<string, unknown>) => props },
 }));
 
 function webOnlyLabel(): never {
@@ -223,4 +245,88 @@ describe.each([
       )
     ).toBe(true);
   });
+
+  it.each([false, true])(
+    'keeps the public filter chip controlled and opens its selector once (active=%s)',
+    active => {
+      const onPress = vi.fn();
+      const title = active ? '性别: 女' : '性别: 全部';
+      renderToStaticMarkup(
+        createElement(FilterChip, {
+          title,
+          icon: 'filter-outline',
+          active,
+          onPress,
+        })
+      );
+      const control = native.views.find(view =>
+        ['TextButton', 'Button'].includes(view.kind)
+      );
+      expect(control).toBeDefined();
+      expect(
+        native.views.some(
+          view => view.kind === 'Text' && view.props.children === title
+        )
+      ).toBe(true);
+      expect(
+        native.views.some(
+          view => view.kind === 'Text' && view.props.children === 'F'
+        )
+      ).toBe(true);
+
+      // 边框/阴影只有一个外层；原生按钮负责全部点击，未嵌套 RN 标签或另一个点击目标。
+      const frames = native.views.filter(view => view.kind === 'RNFrame');
+      expect(frames).toHaveLength(1);
+      expect(
+        Object.assign({}, ...(frames[0].props.style as object[]))
+      ).toMatchObject({
+        backgroundColor: active ? colors.primary : colors.card,
+        borderColor: active ? colors.primary : colors.border,
+        borderRadius: radii.pill,
+      });
+
+      const nativeModifiers = control!.props.modifiers as {
+        kind: string;
+        values: unknown[];
+      }[];
+      if (platform === 'android') {
+        expect(control!.props.shape).toMatchObject({
+          cornerRadii: {
+            topStart: radii.pill,
+            topEnd: radii.pill,
+            bottomStart: radii.pill,
+            bottomEnd: radii.pill,
+          },
+        });
+        expect(control!.props.colors).toMatchObject({
+          containerColor: active ? colors.primary : colors.card,
+          contentColor: active ? colors.onPrimary : colors.muted,
+        });
+        expect(
+          nativeModifiers.find(modifier => modifier.kind === 'semantics')
+            ?.values
+        ).toEqual([
+          { contentDescription: active ? `${title}，已筛选` : title },
+        ]);
+      } else {
+        expect(
+          nativeModifiers.some(
+            modifier =>
+              modifier.kind === 'accessibilityAddTraits' &&
+              (modifier.values[0] as string[]).includes('isSelected')
+          )
+        ).toBe(active);
+      }
+
+      const press = (control!.props.onClick ??
+        control!.props.onPress) as () => void;
+      press();
+      expect(onPress).toHaveBeenCalledTimes(1);
+      expect(
+        native.views.some(
+          view => view.kind === 'Text' && view.props.children === title
+        )
+      ).toBe(true);
+    }
+  );
 });

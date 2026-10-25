@@ -38,6 +38,7 @@ export const sizes = {
   control: 50,
   compactControl: 42,
   iconButton: 44,
+  filterChip: 36,
   search: 44,
   multilineInput: 100,
   sheetMaxWidth: 600,

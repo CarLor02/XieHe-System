@@ -9,7 +9,8 @@ export interface ButtonSurfaceProps {
   icon?: IconName;
   backgroundColor: string;
   foregroundColor: string;
-  size: 'regular' | 'compact' | 'icon';
+  size: 'regular' | 'compact' | 'icon' | 'chip';
+  selected?: boolean;
   // Web 保留 RN 标签；原生端使用 label/icon 构建同一原生视图树中的内容。
   children: ReactElement;
 }

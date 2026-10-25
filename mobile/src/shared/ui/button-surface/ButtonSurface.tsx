@@ -1,6 +1,6 @@
 import { Button, Host } from '@expo/ui';
-import { StyleSheet, Text } from 'react-native';
-import { colors, radii, sizes } from '@/shared/theme';
+import { Pressable, StyleSheet, Text } from 'react-native';
+import { colors, interactionOpacity, radii, sizes } from '@/shared/theme';
 import type { ButtonSurfaceProps } from './types';
 
 // Web 使用 Expo 通用按钮；原生入口分别处理 Compose 和 SwiftUI 的主题与布局。
@@ -12,8 +12,33 @@ export function ButtonSurface({
   backgroundColor,
   size,
   children,
+  selected,
 }: ButtonSurfaceProps) {
   const iconOnly = size === 'icon';
+  // Expo 通用 Web Button 暂不转发选中状态；保留筛选入口的可访问语义。
+  if (size === 'chip') {
+    return (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        accessibilityState={{ selected: !!selected, disabled }}
+        aria-pressed={!!selected}
+        disabled={disabled}
+        onPress={disabled ? undefined : onPress}
+        style={({ pressed }) => ({
+          backgroundColor,
+          borderRadius: radii.pill,
+          opacity: disabled
+            ? interactionOpacity.disabled
+            : pressed
+              ? interactionOpacity.pressed
+              : 1,
+        })}
+      >
+        {children}
+      </Pressable>
+    );
+  }
   return (
     <Host
       colorScheme="light"

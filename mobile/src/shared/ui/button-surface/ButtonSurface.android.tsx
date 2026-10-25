@@ -34,9 +34,12 @@ export function ButtonSurface({
   backgroundColor,
   foregroundColor,
   size,
+  selected,
 }: ButtonSurfaceProps) {
   const iconOnly = size === 'icon';
-  const compact = size === 'compact';
+  const chip = size === 'chip';
+  const compact = size === 'compact' || chip;
+  const cornerRadius = chip ? radii.pill : radii.control;
   const glyph = useIoniconGlyph(icon);
   const buttonColors = {
     containerColor: backgroundColor,
@@ -50,17 +53,31 @@ export function ButtonSurface({
       : [
           ...(!compact ? [fillMaxWidth()] : []),
           defaultMinSize({
-            minHeight: compact ? sizes.compactControl : sizes.control,
+            minHeight: chip
+              ? sizes.filterChip - 2
+              : compact
+                ? sizes.compactControl
+                : sizes.control,
           }),
         ]),
     alpha(disabled ? interactionOpacity.disabled : 1),
-    semantics({ contentDescription: busy ? `${label}，正在处理` : label }),
+    semantics({
+      // 当前 Expo semantics 未开放 selected，直接朗读条件状态，保留按钮的动作语义。
+      contentDescription: busy
+        ? `${label}，正在处理`
+        : chip && selected
+          ? `${label}，已筛选`
+          : label,
+    }),
   ];
   // 按钮内部保持纯 Compose，避免 RNHostView 让显示尺寸与原生命中区域分属两套布局。
   const iconContent = glyph ? (
     <Text
       color={foregroundColor}
-      style={{ fontFamily: glyph.family, fontSize: iconOnly ? 21 : 18 }}
+      style={{
+        fontFamily: glyph.family,
+        fontSize: iconOnly ? 21 : chip ? 14 : 18,
+      }}
     >
       {glyph.character}
     </Text>
@@ -73,7 +90,7 @@ export function ButtonSurface({
       style={
         iconOnly
           ? { width: sizes.iconButton, height: sizes.iconButton, flexShrink: 0 }
-          : { alignSelf: 'auto' }
+          : { alignSelf: chip ? 'flex-start' : 'auto' }
       }
     >
       {iconOnly ? (
@@ -96,16 +113,16 @@ export function ButtonSurface({
           colors={buttonColors}
           contentPadding={{
             start: spacing.md,
-            top: 0,
+            top: chip ? spacing.xs : 0,
             end: spacing.md,
-            bottom: 0,
+            bottom: chip ? spacing.xs : 0,
           }}
           shape={Shape.RoundedCorner({
             cornerRadii: {
-              topStart: radii.control,
-              topEnd: radii.control,
-              bottomStart: radii.control,
-              bottomEnd: radii.control,
+              topStart: cornerRadius,
+              topEnd: cornerRadius,
+              bottomStart: cornerRadius,
+              bottomEnd: cornerRadius,
             },
           })}
           modifiers={modifiers}
@@ -127,7 +144,7 @@ export function ButtonSurface({
               color={foregroundColor}
               style={{
                 fontSize: compact ? fontSizes.small : fontSizes.control,
-                fontWeight: '600',
+                fontWeight: chip ? '500' : '600',
               }}
             >
               {label}
