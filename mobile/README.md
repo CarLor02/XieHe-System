@@ -193,6 +193,8 @@ Expo UI：Android 使用 Compose 按钮，iOS 使用 SwiftUI 按钮，Web 使用
 全部使用 Compose/SwiftUI 组件，不在可点击控件内部嵌套 `RNHostView`，避免两套
 布局的尺寸测量和触控命中不一致。图标复用现有 Ionicons 的字形表及字体，通过
 `expo-font` 加载；Compose 使用注册别名，SwiftUI 使用字体文件的 PostScript 名。
+Android 图标按钮显式使用 `Shape.Circle({ radius: 1 })`；当前 Expo UI 原生实现的
+圆形默认半径为 0，省略后会将图标和背景裁掉，但仍留下可点击区域。
 Web 继续使用 RN 文字、图标和进度组件，业务调用方不需要区分平台。
 `loading` 与 `disabled` 都会禁用原生按钮及点击回调，加载时保留文字并替换图标为
 进度指示器。`button-surface` 供公共组件内部使用，业务页面继续从 `@/shared/ui`

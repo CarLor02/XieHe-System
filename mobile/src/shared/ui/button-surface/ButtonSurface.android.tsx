@@ -81,7 +81,10 @@ export function ButtonSurface({
           enabled={!disabled}
           onClick={disabled ? undefined : onPress}
           colors={buttonColors}
-          shape={Shape.Circle({})}
+          shape={Shape.Circle({
+            // Android 原生默认半径为 0；显式填满轮廓，避免背景和图标被裁掉。
+            radius: 1,
+          })}
           modifiers={modifiers}
         >
           {iconContent}

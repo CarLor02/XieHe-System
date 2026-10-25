@@ -20,7 +20,7 @@ vi.mock('expo-font', () => ({ useFonts: () => [native.fontLoaded, null] }));
 vi.mock('@expo/vector-icons', () => ({
   Ionicons: {
     font: { ionicons: 1 },
-    glyphMap: { add: 43 },
+    glyphMap: { add: 43, 'arrow-back': '←' },
     getFontFamily: () => 'ionicons',
   },
 }));
@@ -42,7 +42,13 @@ vi.mock('@expo/ui/jetpack-compose', async () => {
         'CircularProgressIndicator',
       ].map(kind => [kind, view(kind)])
     ),
-    Shape: { Circle: () => ({}), RoundedCorner: () => ({}) },
+    Shape: {
+      Circle: (props: Record<string, unknown>) => ({
+        type: 'circle',
+        ...props,
+      }),
+      RoundedCorner: () => ({}),
+    },
     // 原生按钮必须在同一个布局/触控树内完成；这个约束防止再次引入混合标签。
     RNHostView: () => {
       throw new Error('原生按钮内不能嵌套 RNHostView');
@@ -183,6 +189,26 @@ describe.each([
       flexShrink: 0,
     });
   });
+
+  if (platform === 'android') {
+    it.each(['add', 'arrow-back'] as const)(
+      'uses a full-size circular clipping outline for the %s header action',
+      icon => {
+        const { props } = renderButton(Surface, {
+          size: 'icon',
+          icon,
+          backgroundColor: '#FFFFFF25',
+          foregroundColor: '#FFFFFF',
+        });
+        // Expo UI Android 的 Circle 原生默认半径为 0，会将背景和字形一起裁掉。
+        expect(props.shape).toMatchObject({ type: 'circle', radius: 1 });
+        expect(props.colors).toMatchObject({
+          containerColor: '#FFFFFF25',
+          contentColor: '#FFFFFF',
+        });
+      }
+    );
+  }
 
   it('waits for the icon font and renders the glyph when it becomes available', () => {
     native.fontLoaded = false;
