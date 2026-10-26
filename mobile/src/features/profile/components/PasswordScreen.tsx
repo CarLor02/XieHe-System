@@ -86,7 +86,6 @@ export function PasswordScreen() {
             autoComplete="new-password"
           />
         </Card>
-        <Notice>密码修改会同步影响 Web 端登录。</Notice>
         {!!error && (
           <Text
             accessibilityRole="alert"

@@ -285,7 +285,7 @@ export class ImageEditorSession {
       imageSize,
       error: imageSize
         ? ''
-        : '该影像的旧标注未记录原图尺寸，当前预览只能查看。请先在 Web 打开并保存一次，再重新读取。',
+        : '该影像的旧标注未记录原图尺寸，当前只能查看预览。请先运行 AI 测量获取原图尺寸。',
     });
   }
   imageFailed(previewUri = this.state.preview?.uri) {

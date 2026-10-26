@@ -46,7 +46,7 @@ export function ProfileInfoScreen() {
   };
   return (
     <Screen>
-      <Header title="个人信息" subtitle="与 Web 端同步的账号资料" back />
+      <Header title="个人信息" back />
       <FormContent>
         <AvatarEditor />
         <Card>

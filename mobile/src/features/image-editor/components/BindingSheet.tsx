@@ -25,7 +25,7 @@ export function BindingSheet({
   return (
     <ChoiceSheet open title="共享点位绑定" onClose={onClose}>
       <Notice>
-        医学共享点位自动按解剖规则同步。这里可手动选择测量点，绑定后向最后选择的点对齐；保存后跨端生效。
+        选择测量点建立绑定，位置向最后选择的点对齐。保存后更新影像标注。
       </Notice>
       {snapshot?.pointBindings.syncGroups.map(group => (
         <Card key={group.id}>

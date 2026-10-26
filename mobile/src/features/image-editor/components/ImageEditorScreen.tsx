@@ -4,9 +4,7 @@ import { usePreventRemove } from 'expo-router/react-navigation';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getExamKind } from '@xiehe/imaging-core/measurements';
 import { Icon } from '@/shared/ui';
-import { ImageInfoSheet } from '@/features/imaging';
 import type { ImageEditorGateway } from '@/features/image-editor/application/ports';
 import { useImageEditor } from '@/features/image-editor/application/useImageEditor';
 import { EditorCanvas } from './EditorCanvas';
@@ -16,6 +14,7 @@ import { EditorToolSheet } from './EditorToolSheet';
 import { BindingSheet } from './BindingSheet';
 import { EditorAnalysisSheet } from './EditorAnalysisSheet';
 import { MeasurementPanel } from './MeasurementPanel';
+import { getEditorHeaderText } from './editorHeaderText';
 import { editorColors as c, editorStyles as s } from './editorTheme';
 
 type Confirmation = 'clear' | 'delete' | 'reload' | 'leave' | 'ai' | null;
@@ -30,7 +29,6 @@ export function ImageEditorScreen({
   initialPanel?: string;
 }) {
   const { session, state, readouts } = useImageEditor(imageId, gateway);
-  const [infoOpen, setInfoOpen] = useState(false);
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const [analysisOpen, setAnalysisOpen] = useState(initialPanel === 'analysis');
@@ -83,13 +81,7 @@ export function ImageEditorScreen({
     if (confirmation === 'leave') setAllowLeave(true);
     setConfirmation(null);
   };
-  const kind = getExamKind(session.context.examType);
-  const examLabel = {
-    ap: '正位',
-    lateral: '侧位',
-    bending: '曲位',
-    generic: '通用',
-  }[kind];
+  const header = getEditorHeaderText(state.image);
   const blocked = !session.editable || !!state.drawing || state.dragging;
   const confirmations = {
     ai: {
@@ -109,7 +101,7 @@ export function ImageEditorScreen({
     delete: {
       title: '删除选中的测量？',
       description:
-        '按 Web 相同规则处理关联测量和独占关键点；删除后可撤销，保存后才写入服务器。',
+        '将处理关联测量和独占关键点；删除后可撤销，保存后才写入服务器。',
       confirmLabel: '删除测量',
       danger: true,
     },
@@ -145,11 +137,15 @@ export function ImageEditorScreen({
             disabled={state.saving || !!state.working}
           />
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={styles.title}>影像标注</Text>
-            <Text numberOfLines={1} style={styles.subtitle}>
-              {state.image?.patient_name ||
-                state.image?.patient_identifier ||
-                `影像 ${imageId}`}
+            <Text
+              accessibilityRole="header"
+              numberOfLines={2}
+              style={styles.title}
+            >
+              {header.title}
+            </Text>
+            <Text numberOfLines={2} style={styles.subtitle}>
+              {header.summary}
             </Text>
           </View>
           <EditorButton
@@ -158,28 +154,6 @@ export function ImageEditorScreen({
             onPress={() => void session.save()}
             disabled={blocked}
           />
-        </View>
-        <View style={s.between}>
-          <View style={s.row}>
-            <View style={styles.examBadge}>
-              <Icon name="scan-outline" color={c.blueLight} size={12} />
-              <Text style={styles.examText}>{examLabel}</Text>
-            </View>
-            <Text style={styles.filename} numberOfLines={1}>
-              {state.image?.original_filename || '正在读取影像'}
-            </Text>
-          </View>
-          <View style={s.row}>
-            <View
-              style={[
-                styles.dot,
-                { backgroundColor: state.dirty ? '#FBBF24' : '#34D399' },
-              ]}
-            />
-            <Text style={styles.version}>
-              {state.dirty ? '未保存' : `版本 ${state.annotationVersion}`}
-            </Text>
-          </View>
         </View>
       </View>
       {state.status === 'loading' ? (
@@ -209,13 +183,6 @@ export function ImageEditorScreen({
               <>
                 <EditorButton
                   compact
-                  label="影像信息"
-                  icon="information-circle-outline"
-                  onPress={() => setInfoOpen(true)}
-                  disabled={state.saving || !!state.working}
-                />
-                <EditorButton
-                  compact
                   label="AI 测量与报告"
                   icon="sparkles-outline"
                   onPress={() => setAnalysisOpen(true)}
@@ -240,7 +207,7 @@ export function ImageEditorScreen({
                 />
                 <EditorButton
                   compact
-                  label="打开标注工具"
+                  label="测量工具"
                   icon="construct-outline"
                   onPress={() => setToolsOpen(true)}
                   disabled={!session.editable}
@@ -344,23 +311,14 @@ export function ImageEditorScreen({
           )}
           {!fullscreen && (
             <View style={styles.footer}>
-              <View style={s.row}>
-                <EditorButton
-                  compact
-                  label="移动与编辑"
-                  icon="hand-left-outline"
-                  active={state.tool === 'hand'}
-                  disabled={!session.editable}
-                  onPress={() => session.chooseTool('hand')}
-                />
-                <EditorButton
-                  label="工具"
-                  icon="construct-outline"
-                  active={!!state.drawing}
-                  disabled={!session.editable}
-                  onPress={() => setToolsOpen(true)}
-                />
-              </View>
+              <EditorButton
+                compact
+                label="移动与编辑"
+                icon="hand-left-outline"
+                active={state.tool === 'hand'}
+                disabled={!session.editable}
+                onPress={() => session.chooseTool('hand')}
+              />
               <View style={s.row}>
                 <EditorButton
                   compact
@@ -425,18 +383,6 @@ export function ImageEditorScreen({
               onClose={() => setToolsOpen(false)}
             />
           )}
-          {infoOpen && state.image && (
-            <ImageInfoSheet
-              image={state.image}
-              metadataEditable={!hasDraft && !state.saving && !state.working}
-              onClose={() => setInfoOpen(false)}
-              onSaved={() => {
-                setInfoOpen(false);
-                setResetToken(t => t + 1);
-                void session.load();
-              }}
-            />
-          )}
         </>
       )}
       {confirmation && (
@@ -456,26 +402,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingTop: 10,
     paddingBottom: 12,
-    gap: 12,
     borderBottomWidth: 1,
     borderColor: c.border,
   },
   headerRow: { ...s.row, gap: 8 },
-  title: { color: c.text, fontSize: 17, fontWeight: '700' },
-  subtitle: { color: c.muted, fontSize: 11, marginTop: 3 },
-  examBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#1E3A5F',
-    borderRadius: 5,
-    paddingVertical: 4,
-    paddingHorizontal: 7,
-  },
-  examText: { color: c.blueLight, fontSize: 10, fontWeight: '600' },
-  filename: { color: '#6B7280', fontSize: 10, maxWidth: 150 },
-  version: { color: c.muted, fontSize: 10 },
-  dot: { height: 5, width: 5, borderRadius: 3 },
+  title: { color: c.text, fontSize: 17, lineHeight: 22, fontWeight: '700' },
+  subtitle: { color: c.muted, fontSize: 11, lineHeight: 16, marginTop: 3 },
   center: {
     flex: 1,
     alignItems: 'center',

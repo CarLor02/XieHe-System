@@ -121,9 +121,6 @@ export function LoginScreen() {
               onPress={() => void submit()}
               loading={app.busy}
             />
-            <Text style={[layout.muted, { textAlign: 'center', fontSize: 11 }]}>
-              与 Web 端使用同一账号 · 安全保存登录状态
-            </Text>
           </Card>
           <View style={{ gap: 12 }}>
             <Pressable

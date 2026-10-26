@@ -164,15 +164,13 @@ export function EditorToolSheet({
         >
           <View style={styles.handle} />
           <View style={styles.heading}>
-            <View>
-              <Text style={styles.headingText}>标注工具</Text>
-              <Text style={s.muted}>
-                {session.context.examType} · 与 Web 使用相同点位规则
-              </Text>
-            </View>
+            <Text accessibilityRole="header" style={styles.headingText}>
+              测量工具 -{' '}
+              {session.context.examType.trim() || state.image?.file_type}
+            </Text>
             <EditorButton
               compact
-              label="关闭标注工具"
+              label="关闭测量工具"
               icon="close"
               onPress={onClose}
             />
@@ -404,10 +402,10 @@ const styles = StyleSheet.create({
     borderColor: c.border,
   },
   headingText: {
+    flex: 1,
     color: c.text,
     fontSize: 17,
     fontWeight: '700',
-    marginBottom: 4,
   },
   content: { padding: 16, gap: 20 },
   group: { gap: 10 },
