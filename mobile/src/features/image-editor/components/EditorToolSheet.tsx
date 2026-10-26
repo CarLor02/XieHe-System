@@ -40,15 +40,11 @@ export function EditorToolSheet({
   state,
   open,
   onClose,
-  onReload,
-  onOpenPerformance,
 }: {
   session: ImageEditorSession;
   state: EditorState;
   open: boolean;
   onClose: () => void;
-  onReload: () => void;
-  onOpenPerformance: () => void;
 }) {
   const [configured, setConfigured] = useState('');
   const [distance, setDistance] = useState(
@@ -378,20 +374,6 @@ export function EditorToolSheet({
                 {state.error}
               </Text>
             )}
-            <EditorButton
-              label="重新读取服务器标注"
-              icon="cloud-download-outline"
-              disabled={state.saving}
-              onPress={() => {
-                onClose();
-                onReload();
-              }}
-            />
-            <EditorButton
-              label="画布性能统计"
-              icon="speedometer-outline"
-              onPress={onOpenPerformance}
-            />
           </ScrollView>
         </KeyboardAvoidingView>
       </View>

@@ -6,6 +6,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getExamKind } from '@xiehe/imaging-core/measurements';
 import { Icon } from '@/shared/ui';
+import { ImageInfoSheet } from '@/features/imaging';
 import type { ImageEditorGateway } from '@/features/image-editor/application/ports';
 import { useImageEditor } from '@/features/image-editor/application/useImageEditor';
 import { EditorCanvas } from './EditorCanvas';
@@ -15,8 +16,6 @@ import { EditorToolSheet } from './EditorToolSheet';
 import { BindingSheet } from './BindingSheet';
 import { EditorAnalysisSheet } from './EditorAnalysisSheet';
 import { MeasurementPanel } from './MeasurementPanel';
-import { DragPerformanceMonitor } from './interaction/dragPerformance';
-import { EditorPerformanceSheet } from './EditorPerformanceSheet';
 import { editorColors as c, editorStyles as s } from './editorTheme';
 
 type Confirmation = 'clear' | 'delete' | 'reload' | 'leave' | 'ai' | null;
@@ -31,8 +30,7 @@ export function ImageEditorScreen({
   initialPanel?: string;
 }) {
   const { session, state, readouts } = useImageEditor(imageId, gateway);
-  const [diagnostics] = useState(() => new DragPerformanceMonitor());
-  const [performanceOpen, setPerformanceOpen] = useState(false);
+  const [infoOpen, setInfoOpen] = useState(false);
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const [analysisOpen, setAnalysisOpen] = useState(initialPanel === 'analysis');
@@ -59,23 +57,13 @@ export function ImageEditorScreen({
     if (allowLeave && pendingLeave) pendingLeave();
   }, [allowLeave, pendingLeave]);
   const goBack = () =>
-    router.canGoBack()
-      ? router.back()
-      : router.replace({ pathname: '/images/[id]', params: { id: imageId } });
+    router.canGoBack() ? router.back() : router.replace('/images');
   const leave = () => {
     if (state.saving || state.working) return;
     if (hasDraft) {
       setPendingLeave(() => goBack);
       setConfirmation('leave');
     } else goBack();
-  };
-  const save = async (complete: boolean) => {
-    if (await session.save()) {
-      if (complete) {
-        setPendingLeave(() => goBack);
-        setAllowLeave(true);
-      }
-    }
   };
   const reload = () => {
     if (hasDraft) setConfirmation('reload');
@@ -152,7 +140,7 @@ export function ImageEditorScreen({
           <EditorButton
             compact
             icon="arrow-back"
-            label="返回影像详情"
+            label="返回"
             onPress={leave}
             disabled={state.saving || !!state.working}
           />
@@ -166,13 +154,8 @@ export function ImageEditorScreen({
           </View>
           <EditorButton
             label={state.saving ? '保存中' : '保存'}
-            onPress={() => void save(false)}
-            disabled={blocked}
-          />
-          <EditorButton
-            label="完成"
             primary
-            onPress={() => void save(true)}
+            onPress={() => void session.save()}
             disabled={blocked}
           />
         </View>
@@ -220,11 +203,17 @@ export function ImageEditorScreen({
             key={`${imageId}-${state.preview?.uri}-${resetToken}`}
             session={session}
             readouts={readouts}
-            diagnostics={diagnostics}
             showLabels={showLabels}
             showKeypoints={showKeypoints}
             controls={
               <>
+                <EditorButton
+                  compact
+                  label="影像信息"
+                  icon="information-circle-outline"
+                  onPress={() => setInfoOpen(true)}
+                  disabled={state.saving || !!state.working}
+                />
                 <EditorButton
                   compact
                   label="AI 测量与报告"
@@ -434,10 +423,17 @@ export function ImageEditorScreen({
               state={state}
               open={toolsOpen}
               onClose={() => setToolsOpen(false)}
-              onReload={reload}
-              onOpenPerformance={() => {
-                setToolsOpen(false);
-                setPerformanceOpen(true);
+            />
+          )}
+          {infoOpen && state.image && (
+            <ImageInfoSheet
+              image={state.image}
+              metadataEditable={!hasDraft && !state.saving && !state.working}
+              onClose={() => setInfoOpen(false)}
+              onSaved={() => {
+                setInfoOpen(false);
+                setResetToken(t => t + 1);
+                void session.load();
               }}
             />
           )}
@@ -448,12 +444,6 @@ export function ImageEditorScreen({
           {...confirmations[confirmation]}
           onCancel={() => setConfirmation(null)}
           onConfirm={confirm}
-        />
-      )}
-      {performanceOpen && (
-        <EditorPerformanceSheet
-          monitor={diagnostics}
-          onClose={() => setPerformanceOpen(false)}
         />
       )}
     </View>

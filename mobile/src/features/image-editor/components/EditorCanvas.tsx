@@ -1,10 +1,4 @@
-import {
-  useLayoutEffect,
-  useMemo,
-  useState,
-  useSyncExternalStore,
-  type ReactNode,
-} from 'react';
+import { useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { Image } from 'expo-image';
 import {
   ActivityIndicator,
@@ -22,7 +16,6 @@ import {
 import type { ImageSize } from '@xiehe/imaging-core/contracts';
 import type { ImageEditorSession } from '@/features/image-editor/application/ImageEditorSession';
 import type { EditorReadoutStore } from '@/features/image-editor/application/EditorReadoutStore';
-import type { DragPerformanceMonitor } from './interaction/dragPerformance';
 import { useCanvasGestures } from './interaction/useCanvasGestures';
 import { AnnotationOverlay } from './AnnotationOverlay';
 import { EditorButton } from './EditorButton';
@@ -30,14 +23,12 @@ import { editorColors as c } from './editorTheme';
 export function EditorCanvas({
   session,
   readouts,
-  diagnostics,
   showLabels,
   showKeypoints,
   controls,
 }: {
   session: ImageEditorSession;
   readouts: EditorReadoutStore;
-  diagnostics: DragPerformanceMonitor;
   showLabels: boolean;
   showKeypoints: boolean;
   controls: ReactNode;
@@ -59,19 +50,10 @@ export function EditorCanvas({
     renderedViewport,
     preview: dragPreview,
     zoom,
-  } = useCanvasGestures(
-    session,
-    size,
-    container,
-    {
-      dragging: state.dragging,
-      drawing: !!state.drawing,
-    },
-    diagnostics
-  );
-  useLayoutEffect(() => {
-    if (state.dragging) diagnostics.committed();
-  }, [diagnostics, state.dragging, state.history]);
+  } = useCanvasGestures(session, size, container, {
+    dragging: state.dragging,
+    drawing: !!state.drawing,
+  });
   const context: TransformContext = useMemo(
     () => ({
       ...renderedViewport,

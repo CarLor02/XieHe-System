@@ -13,12 +13,6 @@ import type { ImageSize, Point } from '@xiehe/imaging-core/contracts';
 import type { ImageEditorSession } from '@/features/image-editor/application/ImageEditorSession';
 import { CanvasInteraction } from './CanvasInteraction';
 import {
-  emptyTimings,
-  recordTiming,
-  type TimingSamples,
-  type DragPerformanceMonitor,
-} from './dragPerformance';
-import {
   emptyMailbox,
   enqueueMove,
   pinchViewport,
@@ -47,22 +41,13 @@ export function useCanvasGestures(
   session: ImageEditorSession,
   imageSize: ImageSize | null,
   container: ImageSize,
-  editing: { dragging: boolean; drawing: boolean },
-  diagnostics: DragPerformanceMonitor
+  editing: { dragging: boolean; drawing: boolean }
 ) {
   const interaction = useMemo(() => new CanvasInteraction(session), [session]);
   const [renderedViewport, setRenderedViewport] = useState(initialViewport);
   const [completedGesture, setCompletedGesture] = useState<number | null>(null);
   const viewport = useSharedValue(initialViewport);
   const preview = useSharedValue<DragPreview>(null);
-  const sampling = useSharedValue(false);
-  const frameSamples = useSharedValue(emptyTimings());
-  const lastSampleTime = useSharedValue<number | null>(null);
-  useEffect(() => {
-    const sync = () => sampling.set(diagnostics.getState().enabled);
-    sync();
-    return diagnostics.subscribe(sync);
-  }, [diagnostics, sampling]);
   const gestureState = useSharedValue<GestureState>({
     id: 0,
     phase: 'idle',
@@ -116,7 +101,6 @@ export function useCanvasGestures(
   );
   const begin = useCallback(
     (id: number, sample: PanSample, current: Viewport) => {
-      diagnostics.begin(id);
       const plan = interaction.begin(id, sample, context(current));
       scheduleOnUI(
         (gestureId: number, next: DragPlan) => {
@@ -134,16 +118,13 @@ export function useCanvasGestures(
         plan
       );
     },
-    [applyPreview, context, gestureState, interaction, diagnostics]
+    [applyPreview, context, gestureState, interaction]
   );
   const move = useCallback(
     (id: number, sample: PanSample) => {
-      const started = diagnostics.getState().enabled ? performance.now() : null;
       try {
         interaction.move(id, sample);
       } finally {
-        if (started !== null)
-          diagnostics.calculation(id, performance.now() - started);
         scheduleOnUI((gestureId: number) => {
           const state = gestureState.get();
           if (state.id === gestureId)
@@ -157,51 +138,34 @@ export function useCanvasGestures(
         }, id);
       }
     },
-    [gestureState, interaction, diagnostics]
+    [gestureState, interaction]
   );
 
   // 一个 UI 显示帧最多提交一次，且至多一个 JS 计算在途；JS 忙时仅保留最新坐标。
   useFrameCallback(
-    useCallback(
-      frame => {
-        'worklet';
+    useCallback(() => {
+      'worklet';
 
-        const state = gestureState.get();
-        if (sampling.get() && state.phase === 'pan') {
-          const before = lastSampleTime.get();
-          if (before !== null)
-            frameSamples.set(
-              recordTiming(frameSamples.get(), frame.timestamp - before)
-            );
-          lastSampleTime.set(frame.timestamp);
-        }
-        if (
-          state.phase !== 'pan' ||
-          !state.plan ||
-          state.plan.kind === 'viewport'
-        )
-          return;
-        const mailbox = takeMove(state.mailbox);
-        if (!mailbox) return;
-        gestureState.set({
-          ...state,
-          mailbox,
-        });
-        scheduleOnRN(move, state.id, mailbox.latest!);
-      },
-      [gestureState, move, sampling, lastSampleTime, frameSamples]
-    )
+      const state = gestureState.get();
+      if (
+        state.phase !== 'pan' ||
+        !state.plan ||
+        state.plan.kind === 'viewport'
+      )
+        return;
+      const mailbox = takeMove(state.mailbox);
+      if (!mailbox) return;
+      gestureState.set({
+        ...state,
+        mailbox,
+      });
+      scheduleOnRN(move, state.id, mailbox.latest!);
+    }, [gestureState, move])
   );
   const finish = useCallback(
-    (
-      id: number,
-      sample: PanSample,
-      current: Viewport,
-      frames: TimingSamples
-    ) => {
+    (id: number, sample: PanSample, current: Viewport) => {
       const finalViewport = interaction.end(id, sample) ?? current;
       setCompletedGesture(id);
-      diagnostics.finish(id, frames, false);
       setRenderedViewport(finalViewport);
       scheduleOnUI(
         (gestureId: number, final: Viewport) => {
@@ -216,14 +180,13 @@ export function useCanvasGestures(
         finalViewport
       );
     },
-    [gestureState, interaction, viewport, diagnostics]
+    [gestureState, interaction, viewport]
   );
   const cancel = useCallback(
-    (id: number, frames: TimingSamples) => {
+    (id: number) => {
       interaction.cancel(id);
-      diagnostics.finish(id, frames, true);
     },
-    [interaction, diagnostics]
+    [interaction]
   );
   const tap = useCallback(
     (point: Point, current: Viewport) =>
@@ -251,20 +214,13 @@ export function useCanvasGestures(
             mailbox: emptyMailbox(),
           });
           preview.set(null);
-          scheduleOnRN(cancel, state.id, frameSamples.get());
+          scheduleOnRN(cancel, state.id);
         }
       },
       editing.dragging,
       editing.drawing
     );
-  }, [
-    editing.dragging,
-    editing.drawing,
-    gestureState,
-    preview,
-    cancel,
-    frameSamples,
-  ]);
+  }, [editing.dragging, editing.drawing, gestureState, preview, cancel]);
   useEffect(() => {
     interaction.activate();
     return () => {
@@ -287,7 +243,7 @@ export function useCanvasGestures(
       const state = gestureState.get();
       suppressTap.set(true);
       if (state.phase === 'pending' || state.phase === 'pan') {
-        scheduleOnRN(cancel, state.id, frameSamples.get());
+        scheduleOnRN(cancel, state.id);
         gestureState.set({
           ...state,
           phase: 'idle',
@@ -306,10 +262,6 @@ export function useCanvasGestures(
       .onStart(event => {
         if (gestureState.get().phase === 'pinch') return;
         const id = gestureState.get().id + 1;
-        if (sampling.get()) {
-          frameSamples.set(emptyTimings());
-          lastSampleTime.set(null);
-        }
         gestureState.set({
           id,
           phase: 'pending',
@@ -341,13 +293,7 @@ export function useCanvasGestures(
           phase: 'idle',
           mailbox: emptyMailbox(),
         });
-        scheduleOnRN(
-          finish,
-          state.id,
-          event,
-          viewport.get(),
-          frameSamples.get()
-        );
+        scheduleOnRN(finish, state.id, event, viewport.get());
       })
       .onFinalize((_event, success) => {
         const phase = gestureState.get().phase;
@@ -433,9 +379,6 @@ export function useCanvasGestures(
     suppressTap,
     tap,
     viewport,
-    sampling,
-    frameSamples,
-    lastSampleTime,
   ]);
   const zoom = useCallback(
     (factor: number) => {
