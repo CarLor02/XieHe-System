@@ -1,5 +1,5 @@
 import { memo, useSyncExternalStore } from 'react';
-import { G, Rect, Text as SvgText } from 'react-native-svg';
+import { Text as SvgText } from 'react-native-svg';
 import type { SharedValue } from 'react-native-reanimated';
 import {
   imageToScreen,
@@ -67,27 +67,16 @@ export const AnnotationLabels = memo(function AnnotationLabels({
           Math.min((context.containerSize?.height ?? 300) - 8, point.y - 10)
         );
         return (
-          <G key={measurement.id}>
-            <Rect
-              x={x}
-              y={y - 16}
-              width={width}
-              height={23}
-              rx={4}
-              fill="#111827E8"
-              stroke={color}
-              strokeWidth={0.7}
-            />
-            <SvgText
-              x={x + 7}
-              y={y}
-              fill={color}
-              fontSize={11}
-              fontWeight="500"
-            >
-              {label}
-            </SvgText>
-          </G>
+          <SvgText
+            key={measurement.id}
+            x={x + 7}
+            y={y}
+            fill={color}
+            fontSize={11}
+            fontWeight="500"
+          >
+            {label}
+          </SvgText>
         );
       })}
       {showKeypoints &&
