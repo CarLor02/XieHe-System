@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Platform } from 'react-native';
 import Svg, { G } from 'react-native-svg';
 import Animated, {
@@ -42,10 +42,8 @@ export function SvgLayer({
     y = bounds?.y ?? 0;
   const width = bounds?.width ?? context.containerSize?.width ?? 0,
     height = bounds?.height ?? context.containerSize?.height ?? 0;
-  // 声明式初值只用于挂载，后续 React 重绘不能把原生视口写回旧位置。
-  const [initialMatrix] = useState(() =>
-    viewportMatrix(rendered, baseViewport, center)
-  );
+  // 原生 G 的 React 重绘从 transform 重建矩阵，必须与本次投影匹配，不能冻结为挂载初值。
+  const renderedMatrix = viewportMatrix(rendered, baseViewport, center);
   const projectionInverse = viewportMatrix(baseViewport, rendered, center);
   const props = useAnimatedProps<{ matrix?: number[]; transform?: string }>(
     () => {
@@ -65,8 +63,7 @@ export function SvgLayer({
       preserveAspectRatio="none"
     >
       <AnimatedGroup
-        // G 的声明式入口是 transform；matrix 供原生动画写入，初次挂载也必须对齐当前视口。
-        transform={`matrix(${initialMatrix.join(' ')})`}
+        transform={`matrix(${renderedMatrix.join(' ')})`}
         animatedProps={props}
       >
         {/* 逆投影与子节点坐标同次提交，避免新坐标再次叠加上一帧的平移/缩放。 */}

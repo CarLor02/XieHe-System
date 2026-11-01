@@ -52,8 +52,9 @@
     "@types/react": "~19.2.2",
     "eslint": "^9.39.5",
     "eslint-config-expo": "~57.0.2",
-    "vitest": "4.1.10",
-    "typescript": "~6.0.3"
+    "jsdom": "26.1.0",
+    "typescript": "~6.0.3",
+    "vitest": "4.1.10"
   },
   "scripts": {
     "start": "expo start --go --lan",
