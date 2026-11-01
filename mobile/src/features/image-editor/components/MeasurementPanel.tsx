@@ -44,11 +44,6 @@ const MeasurementRow = memo(function MeasurementRow({
         <Text numberOfLines={1} style={styles.name}>
           {getAnnotationDisplayName(measurement.type)}
         </Text>
-        {!!measurement.description && (
-          <Text numberOfLines={1} style={styles.description}>
-            {measurement.description}
-          </Text>
-        )}
       </View>
       <Text style={[styles.value, { color }]}>{measurement.value || '—'}</Text>
     </Pressable>
@@ -197,7 +192,6 @@ const styles = StyleSheet.create({
   selected: { backgroundColor: '#172D52', borderColor: '#3B82F6' },
   dot: { width: 7, height: 7, borderRadius: 4 },
   name: { fontSize: 12, color: c.text, fontWeight: '600' },
-  description: { color: c.muted, fontSize: 10, marginTop: 3 },
   value: {
     fontSize: 12,
     fontWeight: '600',

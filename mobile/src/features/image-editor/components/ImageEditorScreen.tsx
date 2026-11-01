@@ -11,28 +11,23 @@ import { EditorCanvas } from './EditorCanvas';
 import { EditorButton } from './EditorButton';
 import { EditorConfirmDialog } from './EditorConfirmDialog';
 import { EditorToolSheet } from './EditorToolSheet';
-import { BindingSheet } from './BindingSheet';
-import { EditorAnalysisSheet } from './EditorAnalysisSheet';
+import { EditorAnalysisOverlay } from './EditorAnalysisOverlay';
 import { MeasurementPanel } from './MeasurementPanel';
 import { getEditorHeaderText } from './editorHeaderText';
 import { editorColors as c, editorStyles as s } from './editorTheme';
 
-type Confirmation = 'clear' | 'delete' | 'reload' | 'leave' | 'ai' | null;
+type Confirmation = 'clear' | 'delete' | 'reload' | 'leave' | null;
 
 export function ImageEditorScreen({
   imageId,
   gateway,
-  initialPanel,
 }: {
   imageId: number;
   gateway: ImageEditorGateway;
-  initialPanel?: string;
 }) {
   const { session, state, readouts } = useImageEditor(imageId, gateway);
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
-  const [analysisOpen, setAnalysisOpen] = useState(initialPanel === 'analysis');
-  const [bindingsOpen, setBindingsOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [measurementsOpen, setMeasurementsOpen] = useState(false);
   const [showLabels, setShowLabels] = useState(true);
@@ -71,7 +66,6 @@ export function ImageEditorScreen({
     }
   };
   const confirm = () => {
-    if (confirmation === 'ai') void session.analyze();
     if (confirmation === 'clear') session.clear();
     if (confirmation === 'delete') session.deleteSelected();
     if (confirmation === 'reload') {
@@ -84,13 +78,6 @@ export function ImageEditorScreen({
   const header = getEditorHeaderText(state.image);
   const blocked = !session.editable || !!state.drawing || state.dragging;
   const confirmations = {
-    ai: {
-      title: '重新运行 AI 测量？',
-      description:
-        '将替换当前测量、关键点和手动绑定。服务器标注保持到你点击保存后更新，本次替换可以撤销。',
-      confirmLabel: '开始测量',
-      danger: false,
-    },
     clear: {
       title: '清除全部标注？',
       description:
@@ -183,9 +170,9 @@ export function ImageEditorScreen({
               <>
                 <EditorButton
                   compact
-                  label="AI 测量与报告"
+                  label="AI 测量"
                   icon="sparkles-outline"
-                  onPress={() => setAnalysisOpen(true)}
+                  onPress={() => void session.analyze()}
                   disabled={!session.canAnalyze}
                 />
                 <EditorButton
@@ -208,13 +195,6 @@ export function ImageEditorScreen({
                   icon="construct-outline"
                   onPress={() => setToolsOpen(true)}
                   disabled={!session.editable}
-                />
-                <EditorButton
-                  compact
-                  label="共享点位绑定"
-                  icon="link-outline"
-                  disabled={blocked}
-                  onPress={() => setBindingsOpen(true)}
                 />
                 {!!session.snapshot?.keypoints.length && (
                   <EditorButton
@@ -241,14 +221,6 @@ export function ImageEditorScreen({
               </>
             }
           />
-          {!!state.working && (
-            <View style={styles.message}>
-              <ActivityIndicator color={c.blueLight} />
-              <Text style={styles.messageText}>
-                {state.working === 'ai' ? '正在运行 AI 测量…' : '正在生成报告…'}
-              </Text>
-            </View>
-          )}
           {!!state.error && (
             <View style={styles.banner}>
               <Icon name="alert-circle-outline" color={c.danger} size={18} />
@@ -354,26 +326,6 @@ export function ImageEditorScreen({
               onClose={() => setMeasurementsOpen(false)}
             />
           )}
-          {bindingsOpen && (
-            <BindingSheet
-              session={session}
-              onClose={() => setBindingsOpen(false)}
-            />
-          )}
-          {analysisOpen && (
-            <EditorAnalysisSheet
-              session={session}
-              state={state}
-              open={analysisOpen}
-              onClose={() => {
-                if (!state.working && !state.saving) setAnalysisOpen(false);
-              }}
-              onAnalyze={() => {
-                setAnalysisOpen(false);
-                setConfirmation('ai');
-              }}
-            />
-          )}
           {toolsOpen && (
             <EditorToolSheet
               key={`${imageId}-${state.annotationVersion}-${toolsOpen}`}
@@ -385,6 +337,7 @@ export function ImageEditorScreen({
           )}
         </>
       )}
+      {state.working === 'ai' && <EditorAnalysisOverlay />}
       {confirmation && (
         <EditorConfirmDialog
           {...confirmations[confirmation]}
