@@ -18,6 +18,7 @@ import {
   ErrorState,
   Header,
   Icon,
+  IconButton,
   Screen,
   Tag,
   type IconName,
@@ -89,7 +90,17 @@ export function ProfileScreen() {
   ] as const;
   return (
     <Screen>
-      <Header title="个人中心" />
+      <Header
+        title="个人中心"
+        right={
+          <IconButton
+            name="notifications-outline"
+            label="消息通知"
+            light
+            onPress={() => router.push('/messages')}
+          />
+        }
+      />
       <Content
         refreshControl={
           <RefreshControl

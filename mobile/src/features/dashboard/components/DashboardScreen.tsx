@@ -13,6 +13,7 @@ import {
   ErrorState,
   Header,
   Icon,
+  IconButton,
   LoadingState,
   Screen,
   type IconName,
@@ -41,6 +42,12 @@ const quickActions = [
     icon: 'scan-outline',
     colors: gradients.teal,
     route: '/images',
+  },
+  {
+    label: '消息通知',
+    icon: 'notifications-outline',
+    colors: gradients.orange,
+    route: '/messages',
   },
 ] as const;
 
@@ -71,7 +78,17 @@ export function DashboardScreen() {
   ];
   return (
     <Screen>
-      <Header title="工作台" />
+      <Header
+        title="工作台"
+        right={
+          <IconButton
+            name="notifications-outline"
+            label="消息通知"
+            light
+            onPress={() => router.push('/messages')}
+          />
+        }
+      />
       <Content
         refreshControl={
           <RefreshControl
