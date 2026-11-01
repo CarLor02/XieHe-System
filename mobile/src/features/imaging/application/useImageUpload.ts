@@ -22,7 +22,7 @@ export function useImageUpload() {
     );
     return () => subscription.remove();
   }, [busy]);
-  const pick = async (source: 'file' | 'gallery' | 'camera') => {
+  const pick = async (source: 'file' | 'gallery') => {
     setError('');
     try {
       if (source === 'file') {
@@ -33,22 +33,11 @@ export function useImageUpload() {
         });
         if (!result.canceled) setFile(readMobileFile(result.assets[0]));
       } else {
-        if (
-          source === 'camera' &&
-          !(await ImagePicker.requestCameraPermissionsAsync()).granted
-        )
-          throw new Error('需要相机权限才能拍照，请在系统设置中允许访问相机');
-        const result =
-          source === 'camera'
-            ? await ImagePicker.launchCameraAsync({
-                quality: 1,
-                allowsEditing: false,
-              })
-            : await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ['images'],
-                quality: 1,
-                allowsEditing: false,
-              });
+        const result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ['images'],
+          quality: 1,
+          allowsEditing: false,
+        });
         if (!result.canceled) {
           const asset = result.assets[0];
           setFile(

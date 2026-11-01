@@ -22,7 +22,6 @@ import { GradientIcon } from '@/shared/ui/gradient-icon';
 import { colors, layout, gradients, shadows, accents } from '@/shared/theme';
 import { useDashboard } from '@/features/dashboard/application/useDashboard';
 import { ActivityList } from './ActivityList';
-import { DashboardGreeting } from './DashboardGreeting';
 import { DashboardSection } from './DashboardSection';
 import { PendingTaskList } from './PendingTaskList';
 
@@ -54,7 +53,7 @@ const quickActions = [
 ] as const;
 
 export function DashboardScreen() {
-  const { user, stats, tasks, activities, refresh } = useDashboard();
+  const { stats, tasks, activities, refresh } = useDashboard();
   const summary = stats.data;
   const cards: {
     label: string;
@@ -101,7 +100,6 @@ export function DashboardScreen() {
         }
         contentContainerStyle={{ gap: 20 }}
       >
-        <DashboardGreeting user={user} />
         <View style={{ gap: 12 }}>
           <Text accessibilityRole="header" style={styles.sectionTitle}>
             数据概览

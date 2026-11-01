@@ -16,6 +16,7 @@ import {
   formatDate,
   imageStatusLabel,
 } from '@/features/imaging/domain/presentation';
+import { ImageCardMetadata } from './ImageCardMetadata';
 
 export function ImageCard({
   image,
@@ -88,21 +89,24 @@ export function ImageCard({
               }
             />
           </View>
-          <View style={[layout.row, { gap: 4 }]}>
-            <Icon name="time-outline" color={colors.faint} size={11} />
-            <Text style={styles.date} numberOfLines={1}>
-              {formatDate(image.uploaded_at || image.created_at)}
-            </Text>
-          </View>
+          {compact && (
+            <View style={[layout.row, { gap: 4 }]}>
+              <Icon name="time-outline" color={colors.faint} size={11} />
+              <Text style={styles.date} numberOfLines={1}>
+                {formatDate(image.created_at)}
+              </Text>
+            </View>
+          )}
         </View>
       </Pressable>
+      {!compact && <ImageCardMetadata image={image} />}
       {!compact && (
         <View style={styles.actions}>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={`分析影像 ${image.original_filename}`}
             onPress={open}
-            style={layout.flex}
+            style={styles.actionSlot}
           >
             <LinearGradient
               colors={gradients.brand}
@@ -110,46 +114,62 @@ export function ImageCard({
               end={{ x: 1, y: 0 }}
               style={styles.analyze}
             >
-              <View style={styles.sparkles}>
-                <Icon
-                  name="sparkles-outline"
-                  color={colors.onPrimary}
-                  size={13}
-                />
-              </View>
-              <Text style={styles.analyzeLabel}>影像分析</Text>
               <Icon
-                name="arrow-forward"
-                color={colors.onPrimarySubtle}
-                size={13}
+                name="sparkles-outline"
+                color={colors.onPrimary}
+                size={14}
               />
+              <Text numberOfLines={1} style={styles.analyzeLabel}>
+                影像分析
+              </Text>
             </LinearGradient>
           </Pressable>
           {onOpenOriginal && (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`打开原始文件 ${image.original_filename}`}
-              accessibilityState={{ disabled: busy, busy }}
-              disabled={busy}
-              onPress={onOpenOriginal}
-              style={styles.actionButton}
-            >
-              {busy ? (
-                <ActivityIndicator size="small" color={colors.faint} />
-              ) : (
-                <Icon name="download-outline" color={colors.faint} size={18} />
-              )}
-            </Pressable>
+            <View style={styles.actionSlot}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`下载影像 ${image.original_filename}`}
+                accessibilityState={{ disabled: busy, busy }}
+                disabled={busy}
+                onPress={onOpenOriginal}
+                style={styles.actionButton}
+              >
+                {busy ? (
+                  <ActivityIndicator size="small" color={colors.faint} />
+                ) : (
+                  <Icon
+                    name="download-outline"
+                    color={colors.muted}
+                    size={14}
+                  />
+                )}
+                <Text numberOfLines={1} style={styles.actionLabel}>
+                  下载
+                </Text>
+              </Pressable>
+            </View>
           )}
           {onDelete && (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`删除影像 ${image.original_filename}`}
-              onPress={onDelete}
-              style={[styles.actionButton, styles.delete]}
-            >
-              <Icon name="trash-outline" color={colors.dangerSoft} size={18} />
-            </Pressable>
+            <View style={styles.actionSlot}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`删除影像 ${image.original_filename}`}
+                onPress={onDelete}
+                style={[styles.actionButton, styles.delete]}
+              >
+                <Icon
+                  name="trash-outline"
+                  color={colors.dangerSoft}
+                  size={14}
+                />
+                <Text
+                  numberOfLines={1}
+                  style={[styles.actionLabel, { color: colors.dangerSoft }]}
+                >
+                  删除
+                </Text>
+              </Pressable>
+            </View>
           )}
         </View>
       )}
@@ -162,7 +182,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 12,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   thumbnail: {
     width: 56,
@@ -178,28 +198,24 @@ const styles = StyleSheet.create({
   name: { fontSize: 14, fontWeight: '700', color: colors.text },
   date: { fontSize: 11, color: colors.faint, flexShrink: 1 },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  actionSlot: { flex: 1, minWidth: 0 },
   analyze: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 4,
     minHeight: 44,
-    paddingHorizontal: 10,
+    paddingHorizontal: 4,
     borderRadius: 16,
     boxShadow: shadows.brandAction,
   },
-  sparkles: {
-    width: 20,
-    height: 20,
-    borderRadius: 7,
-    backgroundColor: colors.onPrimarySurface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  analyzeLabel: { color: colors.onPrimary, fontSize: 13, fontWeight: '600' },
+  analyzeLabel: { color: colors.onPrimary, fontSize: 12, fontWeight: '600' },
+  actionLabel: { color: colors.muted, fontSize: 12, fontWeight: '600' },
   actionButton: {
-    width: 44,
     height: 44,
+    flexDirection: 'row',
+    gap: 4,
+    paddingHorizontal: 4,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',

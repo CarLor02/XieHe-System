@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLocalSearchParams } from 'expo-router';
-import { Platform, Pressable, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import {
   Button,
   Card,
@@ -8,7 +8,6 @@ import {
   Content,
   Header,
   Icon,
-  Notice,
   Screen,
   SectionTitle,
   SelectionList,
@@ -76,34 +75,23 @@ export function ImageUploadScreen() {
                 : 'PNG / JPEG / TIFF · 最大 100 MB'}
             </Text>
           </View>
-          <Button
-            title={upload.file ? '重新选择文件' : '从文件中选择'}
-            icon="folder-open-outline"
-            onPress={() => void upload.pick('file')}
-            disabled={upload.busy}
-          />
-          {Platform.OS !== 'web' && (
-            <View style={layout.row}>
-              <View style={layout.flex}>
-                <Button
-                  title="相册"
-                  variant="secondary"
-                  icon="images-outline"
-                  onPress={() => void upload.pick('gallery')}
-                  disabled={upload.busy}
-                />
-              </View>
-              <View style={layout.flex}>
-                <Button
-                  title="拍照"
-                  variant="secondary"
-                  icon="camera-outline"
-                  onPress={() => void upload.pick('camera')}
-                  disabled={upload.busy}
-                />
-              </View>
+          <View style={layout.row}>
+            <View style={{ flex: 1.2, minWidth: 0 }}>
+              <Button
+                title={upload.file ? '重新选择文件' : '从文件中选择'}
+                onPress={() => void upload.pick('file')}
+                disabled={upload.busy}
+              />
             </View>
-          )}
+            <View style={[layout.flex, { minWidth: 0 }]}>
+              <Button
+                title="相册"
+                variant="secondary"
+                onPress={() => void upload.pick('gallery')}
+                disabled={upload.busy}
+              />
+            </View>
+          </View>
         </Card>
         <Card style={{ gap: 14 }}>
           <SectionTitle title="检查类型 *" />
@@ -182,9 +170,6 @@ export function ImageUploadScreen() {
             {upload.error}
           </Text>
         )}
-        <Notice>
-          拍照会生成普通照片，不能替代原始医学影像。上传期间请保持应用在前台。
-        </Notice>
         <Button
           title="开始上传"
           icon="cloud-upload-outline"

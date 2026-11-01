@@ -3,7 +3,7 @@ import { useWorkspace } from '@/application/AppProvider';
 import { useResource } from '@/shared/hooks/useResource';
 
 export function useDashboard() {
-  const { services, user } = useWorkspace();
+  const { services } = useWorkspace();
   const stats = useResource(
     useCallback(() => services.dashboard.getStats(), [services])
   );
@@ -26,5 +26,5 @@ export function useDashboard() {
     void tasks.reload();
     void activities.reload();
   };
-  return { user, stats, tasks, activities, refresh };
+  return { stats, tasks, activities, refresh };
 }

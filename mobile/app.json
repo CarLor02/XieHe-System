@@ -39,7 +39,7 @@
         "expo-image-picker",
         {
           "photosPermission": "选择检查影像并上传到协和脊柱影像系统",
-          "cameraPermission": "拍摄检查照片并上传到协和脊柱影像系统",
+          "cameraPermission": false,
           "microphonePermission": false
         }
       ],
