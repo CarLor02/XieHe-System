@@ -36,11 +36,11 @@ export function SvgLayer({
   };
   const x = bounds?.x ?? 0,
     y = bounds?.y ?? 0;
+  const width = bounds?.width ?? context.containerSize?.width ?? 0,
+    height = bounds?.height ?? context.containerSize?.height ?? 0;
   const props = useAnimatedProps<{ matrix?: number[]; transform?: string }>(
     () => {
       const matrix = viewportMatrix(viewport.get(), rendered, center);
-      matrix[4] -= x;
-      matrix[5] -= y;
       return isWeb ? { transform: `matrix(${matrix.join(' ')})` } : { matrix };
     }
   );
@@ -48,8 +48,11 @@ export function SvgLayer({
     <Svg
       pointerEvents="none"
       style={{ position: 'absolute', left: x, top: y }}
-      width={bounds?.width ?? context.containerSize?.width ?? 0}
-      height={bounds?.height ?? context.containerSize?.height ?? 0}
+      width={width}
+      height={height}
+      // 裁剪原点随 SVG 布局一起提交；放进动画矩阵会在挂载或换格时短暂显示错位副本。
+      viewBox={bounds ? `${x} ${y} ${width} ${height}` : undefined}
+      preserveAspectRatio="none"
     >
       <AnimatedGroup animatedProps={props}>{children}</AnimatedGroup>
     </Svg>
