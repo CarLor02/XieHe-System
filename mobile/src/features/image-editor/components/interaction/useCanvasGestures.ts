@@ -315,6 +315,9 @@ export function useCanvasGestures(
         });
       })
       .onUpdate(event => {
+        // Android 抬起一指后仍可能派发更新，此时焦点已变成剩余手指，不能再用作双指中心。
+        if (gestureState.get().phase !== 'pinch' || event.numberOfPointers < 2)
+          return;
         const start = pinchStart.get();
         viewport.set(
           pinchViewport(
