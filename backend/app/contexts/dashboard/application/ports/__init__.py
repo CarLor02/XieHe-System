@@ -3,11 +3,9 @@
 from .readers import (
     ImagingDashboardReader,
     PatientDashboardReader,
-    ReportDashboardReader,
 )
 
 __all__ = [
     "ImagingDashboardReader",
     "PatientDashboardReader",
-    "ReportDashboardReader",
 ]

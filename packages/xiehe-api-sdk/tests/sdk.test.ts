@@ -82,11 +82,6 @@ beforeEach(async () => {
         pagination: { total: 6, page: 2, page_size: 5, total_pages: 2 },
       };
     if (request.url === '/api/v1/patients/delete') data = null;
-    if (request.url === '/api/v1/dashboard/recent-activities')
-      data = {
-        activities: [{ id: 42, timestamp: '2026-10-19T08:30:00Z' }],
-        total: 1,
-      };
     response.writeHead(200, { 'Content-Type': 'application/json' });
     response.end(JSON.stringify({ code: 200, message: 'ok', data }));
   });
@@ -176,11 +171,6 @@ describe('shared API declarations over the published SDK', () => {
       path: '/api/v1/image-files/rename',
       body: { file_id: 7, basename: 'renamed' },
     });
-  });
-  it('preserves activity timestamps and numeric IDs', async () => {
-    expect(await sdk.dashboard.getRecentActivities()).toEqual([
-      { id: 42, timestamp: '2026-10-19T08:30:00Z' },
-    ]);
   });
   it('keeps upload session methods, paths and bodies unchanged', async () => {
     const parts = [{ part_number: 1, etag: 'etag-1' }];

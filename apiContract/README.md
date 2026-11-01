@@ -105,7 +105,6 @@ POST multipart，文件参数保持不变。所有权限与业务规则仍由原
 | --- | --- |
 | `GET /api/v1/permissions/users` | `/api/v1/permissions/users/list` |
 | `GET /api/v1/dashboard/overview` | `/api/v1/dashboard/overview` |
-| `GET /api/v1/dashboard/recent-activities` | `/api/v1/dashboard/recent-activities` |
 | `GET /api/v1/dashboard/stats` | `/api/v1/dashboard/stats` |
 | `POST /api/v1/patients/` / `POST /api/v1/patients` | `/api/v1/patients/create` |
 | `GET /api/v1/patients/` / `GET /api/v1/patients` | `/api/v1/patients/list` |

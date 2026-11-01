@@ -14,7 +14,6 @@ from app.contexts.dashboard.interface.http.v1.routes import (
 )
 from app.contexts.dashboard.interface.http.v1.schemas.dashboard_requests import (
     RequestGetDashboardStats,
-    RequestGetRecentActivities,
 )
 from app.contexts.imaging.application import ImageVisibilityApplicationService
 from app.contexts.imaging.application.dto import ImageListFilters
@@ -404,21 +403,6 @@ async def test_dashboard_counts_only_explicit_team_images(db_session):
     )
     assert isinstance(after["data"], dict)
     assert after["data"]["total_images"] == 2
-
-
-@pytest.mark.asyncio
-async def test_dashboard_recent_images_respect_visibility(db_session):
-    result = await dashboard_handlers.get_recent_activities(
-        current_user=current_user(10),
-        service=build_dashboard_query_service(db_session),
-        request=RequestGetRecentActivities(limit=6),
-    )
-    assert isinstance(result["data"], dict)
-    image_activities = [
-        item for item in result["data"]["activities"] if item["type"] == "image"
-    ]
-
-    assert [item["id"] for item in image_activities] == [1]
 
 
 @pytest.mark.asyncio

@@ -28,7 +28,6 @@ from .query import (
     ImageListFilters,
     ImageStatistics,
     ImageSummary,
-    RecentImage,
 )
 from .storage import (
     MultipartPart,
@@ -100,7 +99,6 @@ __all__ = [
     "ObjectWriteResult",
     "PageResult",
     "PresignedPart",
-    "RecentImage",
     "StoredObject",
     "ThumbnailGenerationResult",
     "ThumbnailBackfillResult",

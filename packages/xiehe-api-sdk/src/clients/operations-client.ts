@@ -17,9 +17,6 @@ export function createOperationsClient(http: HttpApi) {
     dashboard: {
       getStats: () => dashboardApi.requestGetDashboardStats({}),
       getOverview: () => dashboardApi.requestGetDashboardOverview({}),
-      getRecentActivities: async () =>
-        (await dashboardApi.requestGetRecentActivities({ limit: 10 }))
-          .activities,
     },
     models: {
       list: async (query: Partial<RequestGetModels> = {}) =>

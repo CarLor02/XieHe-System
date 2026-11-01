@@ -18,13 +18,9 @@ export function useDashboard() {
       [services]
     )
   );
-  const activities = useResource(
-    useCallback(() => services.dashboard.getRecentActivities(), [services])
-  );
   const refresh = () => {
     void stats.reload();
     void tasks.reload();
-    void activities.reload();
   };
-  return { stats, tasks, activities, refresh };
+  return { stats, tasks, refresh };
 }

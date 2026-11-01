@@ -38,16 +38,6 @@ class DashboardOverview:
     generated_at: datetime
 
 
-@dataclass(frozen=True, slots=True)
-class RecentActivity:
-    id: int
-    type: str
-    title: str
-    description: str
-    timestamp: datetime
-    status: str
-
-
 def completion_rate(counts: ImageCounts) -> float:
     if counts.total <= 0:
         return 0.0

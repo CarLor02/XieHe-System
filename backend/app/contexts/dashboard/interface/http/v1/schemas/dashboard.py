@@ -25,19 +25,3 @@ class DashboardOverview(BaseModel):
 
     # 时间戳
     generated_at: datetime = Field(..., description="生成时间")
-
-
-class RecentActivity(BaseModel):
-    """最近活动"""
-
-    id: int
-    type: str  # patient, study, report
-    title: str
-    description: str
-    timestamp: datetime
-    status: str
-
-
-class RecentActivitiesResult(BaseModel):
-    activities: list[RecentActivity]
-    total: int

@@ -32,7 +32,7 @@ export interface MobileServices {
     | 'listAnnotationHistory'
     | 'getAnnotationHistory'
   >;
-  dashboard: Pick<XieheApiSdk['dashboard'], 'getStats' | 'getRecentActivities'>;
+  dashboard: Pick<XieheApiSdk['dashboard'], 'getStats'>;
   teams: TeamsGateway;
   reports: ReportsGateway;
   preview: (imageId: number) => Promise<ImagePreview>;

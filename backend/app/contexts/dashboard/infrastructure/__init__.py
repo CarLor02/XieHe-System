@@ -3,11 +3,9 @@
 from .readers import (
     ImagingApplicationDashboardReader,
     SqlAlchemyPatientDashboardReader,
-    SqlAlchemyReportDashboardReader,
 )
 
 __all__ = [
     "ImagingApplicationDashboardReader",
     "SqlAlchemyPatientDashboardReader",
-    "SqlAlchemyReportDashboardReader",
 ]

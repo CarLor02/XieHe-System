@@ -16,12 +16,10 @@ from app.core.system.logger import LogLevel, logger
 from app.core.system.response import ApiResponse, success_response
 
 from ..dependencies import get_dashboard_query_service
-from ..schemas import DashboardOverview, RecentActivity
-from ..schemas.dashboard import RecentActivitiesResult
+from ..schemas import DashboardOverview
 from ..schemas.dashboard_requests import (
     RequestGetDashboardOverview,
     RequestGetDashboardStats,
-    RequestGetRecentActivities,
 )
 
 router = APIRouter()
@@ -54,27 +52,6 @@ async def get_dashboard_overview(
     )
     response = DashboardOverview(**asdict(overview))
     return success_response(data=response.model_dump(), message="获取仪表板概览成功")
-
-
-@router.post(
-    "/recent-activities",
-    summary="获取最近活动",
-    response_model=ApiResponse[RecentActivitiesResult],
-    operation_id="get_recent_activities",
-)
-async def get_recent_activities(
-    request: RequestGetRecentActivities,
-    current_user: AccessPrincipal = Depends(get_current_active_user),
-    service: DashboardQueryService = Depends(get_dashboard_query_service),
-) -> dict[str, object]:
-    activities = _execute(
-        lambda: service.recent_activities(current_user, limit=request.limit),
-        detail="获取最近活动过程中发生错误",
-    )
-    items = [RecentActivity(**asdict(item)).model_dump() for item in activities]
-    return success_response(
-        data={"activities": items, "total": len(items)}, message="获取最近活动成功"
-    )
 
 
 @router.post(

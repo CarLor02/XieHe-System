@@ -1,5 +1,4 @@
 export type {
-  DashboardActivity,
   DashboardOverview,
   DashboardStats,
 } from '@xiehe/api-contracts';

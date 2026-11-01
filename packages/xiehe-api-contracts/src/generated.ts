@@ -197,23 +197,6 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/dashboard/recent-activities": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** 获取最近活动 */
-        post: operations["get_recent_activities"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/dashboard/stats": {
         parameters: {
             query?: never;
@@ -3437,38 +3420,6 @@ export type components = {
             timestamp?: string;
         };
         /**
-         * ApiResponse[RecentActivitiesResult]
-         * @example {
-         *       "code": 200,
-         *       "data": {
-         *         "key": "value"
-         *       },
-         *       "message": "操作成功",
-         *       "timestamp": "2026-02-08T10:00:00"
-         *     }
-         */
-        ApiResponse_RecentActivitiesResult_: {
-            /**
-             * Code
-             * @description 业务状态码
-             * @default 200
-             */
-            code: number;
-            /** @description 响应数据 */
-            data: components["schemas"]["RecentActivitiesResult"];
-            /**
-             * Message
-             * @description 响应消息
-             * @default 操作成功
-             */
-            message: string;
-            /**
-             * Timestamp
-             * @description 响应时间戳
-             */
-            timestamp?: string;
-        };
-        /**
          * ApiResponse[RefreshTokenResult]
          * @example {
          *       "code": 200,
@@ -5475,34 +5426,6 @@ export type components = {
             /** Timestamp */
             timestamp: string;
         };
-        /** RecentActivitiesResult */
-        RecentActivitiesResult: {
-            /** Activities */
-            activities: components["schemas"]["RecentActivity"][];
-            /** Total */
-            total: number;
-        };
-        /**
-         * RecentActivity
-         * @description 最近活动
-         */
-        RecentActivity: {
-            /** Description */
-            description: string;
-            /** Id */
-            id: number;
-            /** Status */
-            status: string;
-            /**
-             * Timestamp
-             * Format: date-time
-             */
-            timestamp: string;
-            /** Title */
-            title: string;
-            /** Type */
-            type: string;
-        };
         /** RecentError */
         RecentError: {
             /** Id */
@@ -5832,15 +5755,6 @@ export type components = {
             sort_order: string;
             /** Status */
             status?: string | null;
-        };
-        /** RequestGetRecentActivities */
-        RequestGetRecentActivities: {
-            /**
-             * Limit
-             * @description 返回数量限制
-             * @default 10
-             */
-            limit: number;
         };
         /** RequestGetReport */
         RequestGetReport: {
@@ -6874,7 +6788,6 @@ export type ApiResponse_PaginatedData_ReportSummary__ = components['schemas']['A
 export type ApiResponse_PaginatedData_UploadRecordResult__ = components['schemas']['ApiResponse_PaginatedData_UploadRecordResult__'];
 export type ApiResponse_PatientResponse_ = components['schemas']['ApiResponse_PatientResponse_'];
 export type ApiResponse_ProbeStatusResult_ = components['schemas']['ApiResponse_ProbeStatusResult_'];
-export type ApiResponse_RecentActivitiesResult_ = components['schemas']['ApiResponse_RecentActivitiesResult_'];
 export type ApiResponse_RefreshTokenResult_ = components['schemas']['ApiResponse_RefreshTokenResult_'];
 export type ApiResponse_RegisterResult_ = components['schemas']['ApiResponse_RegisterResult_'];
 export type ApiResponse_ReportResponse_ = components['schemas']['ApiResponse_ReportResponse_'];
@@ -6985,8 +6898,6 @@ export type PatientCreate = components['schemas']['PatientCreate'];
 export type PatientResponse = components['schemas']['PatientResponse'];
 export type PresignedPartResult = components['schemas']['PresignedPartResult'];
 export type ProbeStatusResult = components['schemas']['ProbeStatusResult'];
-export type RecentActivitiesResult = components['schemas']['RecentActivitiesResult'];
-export type RecentActivity = components['schemas']['RecentActivity'];
 export type RecentError = components['schemas']['RecentError'];
 export type RefreshTokenResult = components['schemas']['RefreshTokenResult'];
 export type RegisterResult = components['schemas']['RegisterResult'];
@@ -7013,7 +6924,6 @@ export type RequestGetMyInvitations = components['schemas']['RequestGetMyInvitat
 export type RequestGetPatient = components['schemas']['RequestGetPatient'];
 export type RequestGetPatientImages = components['schemas']['RequestGetPatientImages'];
 export type RequestGetPatients = components['schemas']['RequestGetPatients'];
-export type RequestGetRecentActivities = components['schemas']['RequestGetRecentActivities'];
 export type RequestGetReport = components['schemas']['RequestGetReport'];
 export type RequestGetReports = components['schemas']['RequestGetReports'];
 export type RequestGetSystemConfigs = components['schemas']['RequestGetSystemConfigs'];
@@ -8236,120 +8146,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiResponse_DashboardOverview_"];
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Too Many Requests */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Internal Server Error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Bad Gateway */
-            502: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Service Unavailable */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
-    get_recent_activities: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RequestGetRecentActivities"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponse_RecentActivitiesResult_"];
                 };
             };
             /** @description Bad Request */

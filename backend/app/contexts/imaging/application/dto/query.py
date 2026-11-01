@@ -114,11 +114,3 @@ class DashboardImageCounts:
     week: int
     pending: int
     processed: int
-
-
-@dataclass(frozen=True, slots=True)
-class RecentImage:
-    id: int
-    original_filename: str
-    created_at: datetime
-    status: str

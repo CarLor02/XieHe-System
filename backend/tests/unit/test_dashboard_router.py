@@ -7,11 +7,7 @@ from app.main import app
 def test_dashboard_v1_routes_are_registered_once() -> None:
     paths = [route.path for route in api_router.routes]
     assert paths.count("/dashboard/overview") == 1
-    for path in (
-        "/dashboard/stats",
-        "/dashboard/recent-activities",
-    ):
-        assert path in paths
+    assert paths.count("/dashboard/stats") == 1
 
     assert "/dashboard/system-metrics" not in paths
     assert "/dashboard/tasks" not in paths

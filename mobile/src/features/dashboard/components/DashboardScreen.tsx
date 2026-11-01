@@ -13,7 +13,6 @@ import {
   ErrorState,
   Header,
   Icon,
-  IconButton,
   LoadingState,
   Screen,
   type IconName,
@@ -21,7 +20,6 @@ import {
 import { GradientIcon } from '@/shared/ui/gradient-icon';
 import { colors, layout, gradients, shadows, accents } from '@/shared/theme';
 import { useDashboard } from '@/features/dashboard/application/useDashboard';
-import { ActivityList } from './ActivityList';
 import { DashboardSection } from './DashboardSection';
 import { PendingTaskList } from './PendingTaskList';
 
@@ -44,16 +42,10 @@ const quickActions = [
     colors: gradients.teal,
     route: '/images',
   },
-  {
-    label: '消息通知',
-    icon: 'notifications-outline',
-    colors: gradients.orange,
-    route: '/messages',
-  },
 ] as const;
 
 export function DashboardScreen() {
-  const { stats, tasks, activities, refresh } = useDashboard();
+  const { stats, tasks, refresh } = useDashboard();
   const summary = stats.data;
   const cards: {
     label: string;
@@ -79,17 +71,7 @@ export function DashboardScreen() {
   ];
   return (
     <Screen>
-      <Header
-        title="工作台"
-        right={
-          <IconButton
-            name="notifications-outline"
-            label="消息通知"
-            light
-            onPress={() => router.push('/messages')}
-          />
-        }
-      />
+      <Header title="工作台" />
       <Content
         refreshControl={
           <RefreshControl
@@ -212,20 +194,6 @@ export function DashboardScreen() {
               <Icon name="arrow-forward" size={14} />
             </Pressable>
           </View>
-        </DashboardSection>
-        <DashboardSection title="近期动态" accent={accents.sky.marker}>
-          {activities.loading && !activities.data && <LoadingState />}
-          {!!activities.error && (
-            <ErrorState
-              message={activities.error}
-              onRetry={() => void activities.reload()}
-            />
-          )}
-          {activities.data?.length ? (
-            <ActivityList activities={activities.data.slice(0, 5)} />
-          ) : (
-            activities.data && <EmptyState title="暂无近期动态" />
-          )}
         </DashboardSection>
       </Content>
     </Screen>

@@ -7,7 +7,6 @@ from app.contexts.dashboard.application import DashboardQueryService
 from app.contexts.dashboard.infrastructure import (
     ImagingApplicationDashboardReader,
     SqlAlchemyPatientDashboardReader,
-    SqlAlchemyReportDashboardReader,
 )
 from app.contexts.imaging.application import (
     ImageVisibilityApplicationService,
@@ -32,7 +31,6 @@ def build_dashboard_query_service(db: Session) -> DashboardQueryService:
     return DashboardQueryService(
         SqlAlchemyPatientDashboardReader(db),
         ImagingApplicationDashboardReader(imaging_service),
-        SqlAlchemyReportDashboardReader(db),
     )
 
 

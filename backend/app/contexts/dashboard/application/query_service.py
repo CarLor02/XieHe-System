@@ -1,4 +1,4 @@
-"""Dashboard 概览与活动查询用例。"""
+"""Dashboard 概览统计查询用例。"""
 
 from __future__ import annotations
 
@@ -8,14 +8,12 @@ from typing import Callable
 from app.contexts.access_control.application import AccessPrincipal
 from app.contexts.dashboard.domain import (
     DashboardOverview,
-    RecentActivity,
 )
 from app.contexts.dashboard.domain.models import completion_rate
 
 from .ports import (
     ImagingDashboardReader,
     PatientDashboardReader,
-    ReportDashboardReader,
 )
 
 
@@ -24,13 +22,11 @@ class DashboardQueryService:
         self,
         patient_reader: PatientDashboardReader,
         imaging_reader: ImagingDashboardReader,
-        report_reader: ReportDashboardReader,
         *,
         now: Callable[[], datetime] = datetime.now,
     ) -> None:
         self._patient_reader = patient_reader
         self._imaging_reader = imaging_reader
-        self._report_reader = report_reader
         self._now = now
 
     def overview(self, principal: AccessPrincipal) -> DashboardOverview:
@@ -60,15 +56,3 @@ class DashboardQueryService:
             completion_rate=completion_rate(images),
             generated_at=generated_at,
         )
-
-    def recent_activities(
-        self, principal: AccessPrincipal, *, limit: int
-    ) -> list[RecentActivity]:
-        source_limit = limit // 3
-        activities = [
-            *self._patient_reader.recent(source_limit),
-            *self._imaging_reader.recent(principal=principal, limit=source_limit),
-            *self._report_reader.recent(source_limit),
-        ]
-        activities.sort(key=lambda item: item.timestamp, reverse=True)
-        return activities[:limit]

@@ -8,7 +8,6 @@ from typing import Protocol
 from app.contexts.imaging.application.dto import (
     DashboardImageCounts,
     ImageStatistics,
-    RecentImage,
 )
 from app.contexts.imaging.domain import ImageAccessScope
 
@@ -23,10 +22,3 @@ class ImageStatisticsRepository(Protocol):
         today_start: datetime,
         week_start: datetime,
     ) -> DashboardImageCounts: ...
-
-    def list_recent_images(
-        self,
-        *,
-        scope: ImageAccessScope,
-        limit: int,
-    ) -> list[RecentImage]: ...

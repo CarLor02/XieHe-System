@@ -11,7 +11,6 @@ from sqlalchemy.orm import Query, Session
 from app.contexts.imaging.application.dto import (
     DashboardImageCounts,
     ImageStatistics,
-    RecentImage,
 )
 from app.contexts.imaging.domain import ImageAccessScope, ImageFileStatusEnum
 
@@ -79,25 +78,3 @@ class SqlAlchemyImageStatisticsRepository:
                 ImageFile.status == ImageFileStatusEnum.PROCESSED
             ).count(),
         )
-
-    def list_recent_images(
-        self,
-        *,
-        scope: ImageAccessScope,
-        limit: int,
-    ) -> list[RecentImage]:
-        images = (
-            self._visible_image_query(scope)
-            .order_by(ImageFile.created_at.desc())
-            .limit(limit)
-            .all()
-        )
-        return [
-            RecentImage(
-                id=image.id,
-                original_filename=str(image.original_filename),
-                created_at=image.created_at,
-                status=image.status.value,
-            )
-            for image in images
-        ]

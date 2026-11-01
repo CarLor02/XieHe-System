@@ -14,7 +14,6 @@ from app.contexts.imaging.application.dto import (
     ImageStatistics,
     ImageSummary,
     PageResult,
-    RecentImage,
 )
 from app.contexts.imaging.domain import ImageAccessActor
 
@@ -129,15 +128,4 @@ class ImagingQueryService:
             scope=self._visibility.resolve_scope(actor),
             today_start=today_start,
             week_start=week_start,
-        )
-
-    def list_recent_images(
-        self,
-        *,
-        actor: ImageAccessActor,
-        limit: int,
-    ) -> list[RecentImage]:
-        return self._statistics_repository.list_recent_images(
-            scope=self._visibility.resolve_scope(actor),
-            limit=limit,
         )
