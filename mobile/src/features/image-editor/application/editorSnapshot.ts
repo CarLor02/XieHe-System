@@ -65,7 +65,8 @@ export function recalculateSnapshot(
 export function synchronizeKeypoints(
   snapshot: AnnotationEditorSnapshot,
   keypoints: KeypointAnnotation[],
-  context: CalculationContext
+  context: CalculationContext,
+  options?: { recalculateAll?: boolean }
 ): AnnotationEditorSnapshot {
   const lateral = isLateralExamType(context.examType ?? '');
   const previousPoints = new Map(
@@ -95,7 +96,9 @@ export function synchronizeKeypoints(
     calculationContext: context,
     aiMeasurementIds: new Set(snapshot.aiMeasurementIds),
     calculator: measurementCalculator,
-    changedKeypointIds,
+    changedKeypointIds: options?.recalculateAll
+      ? undefined
+      : changedKeypointIds,
   });
   return {
     ...snapshot,
@@ -114,9 +117,10 @@ export function synchronizeKeypoints(
 export function confirmKeypoints(
   snapshot: AnnotationEditorSnapshot,
   keypoints: KeypointAnnotation[],
-  context: CalculationContext
+  context: CalculationContext,
+  options?: { recalculateAll?: boolean }
 ): AnnotationEditorSnapshot {
-  const next = synchronizeKeypoints(snapshot, keypoints, context);
+  const next = synchronizeKeypoints(snapshot, keypoints, context, options);
   return {
     ...next,
     measurements: deriveMissingFixedMeasurementsFromKeypoints({

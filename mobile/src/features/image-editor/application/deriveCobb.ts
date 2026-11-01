@@ -1,17 +1,12 @@
 import type { AnnotationEditorSnapshot } from '@xiehe/imaging-core/editor';
-import {
-  isKeypointSupportedExamType,
-  isLateralExamType,
-} from '@xiehe/imaging-core/anatomy';
+import { isKeypointSupportedExamType } from '@xiehe/imaging-core/anatomy';
 import {
   createNextBoundCobbMeasurement,
   getMeasurementDeriveEndpointGroups,
-  hasCobbMeasurementForEndpoints,
-  isValidMeasurementDeriveEndpointOrder,
 } from '@xiehe/imaging-core/measurement-keypoint-sync';
 import type { CalculationContext } from '@xiehe/imaging-core/measurements';
-import { getLateralNamedCobbMeasurementRuleByEndpoints } from '@xiehe/imaging-core/measurements/lateral';
 import { measurementCalculator } from './measurementValues';
+import { validateCobbEndpoints } from './cobbEndpointRules';
 
 export function deriveCobbFromKeypoints(
   snapshot: AnnotationEditorSnapshot,
@@ -22,23 +17,13 @@ export function deriveCobbFromKeypoints(
   const examType = context.examType ?? '';
   if (!isKeypointSupportedExamType(examType))
     throw new Error('此检查类型不支持测量项派生');
-  if (!isValidMeasurementDeriveEndpointOrder(upperVertebra, lowerVertebra))
-    throw new Error('上端椎不应该比下端椎更靠下或与下端椎相同');
-  if (
-    isLateralExamType(examType) &&
-    getLateralNamedCobbMeasurementRuleByEndpoints(upperVertebra, lowerVertebra)
-  )
-    throw new Error('请使用专用工具创建此测量项');
-  if (
-    hasCobbMeasurementForEndpoints(
-      snapshot.measurements,
-      upperVertebra,
-      lowerVertebra
-    )
-  )
-    throw new Error(
-      `Cobb${upperVertebra}-${lowerVertebra}已经存在，不可重复派生`
-    );
+  if (!upperVertebra || !lowerVertebra) throw new Error('请选择上下端椎');
+  validateCobbEndpoints(
+    snapshot.measurements,
+    examType,
+    upperVertebra,
+    lowerVertebra
+  );
   if (
     !getMeasurementDeriveEndpointGroups(
       snapshot.keypoints,

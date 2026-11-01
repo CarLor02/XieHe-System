@@ -52,6 +52,8 @@ import {
   offsetVertebraLabels,
 } from './correctKeypoints';
 import { deriveCobbFromKeypoints } from './deriveCobb';
+import { updateCobbEndpoint } from './updateCobbEndpoint';
+import type { CobbEndpointField } from './cobbEndpointRules';
 import { dragAnnotation, type EditorSelection } from './dragAnnotation';
 import { recalculateSnapshot, synchronizeKeypoints } from './editorSnapshot';
 import { measurementCalculator } from './measurementValues';
@@ -595,6 +597,25 @@ export class ImageEditorSession {
       this.update({ error: getApiErrorMessage(cause) });
       return false;
     }
+  }
+  updateCobbEndpoint(
+    measurementId: string,
+    field: CobbEndpointField,
+    vertebra: string
+  ): boolean {
+    const updated = this.applySnapshotEdit(
+      snapshot =>
+        updateCobbEndpoint(
+          snapshot,
+          this.context,
+          measurementId,
+          field,
+          vertebra
+        ),
+      'hand'
+    );
+    if (updated) this.select({ kind: 'whole', measurementId });
+    return updated;
   }
   deleteSelected() {
     if (

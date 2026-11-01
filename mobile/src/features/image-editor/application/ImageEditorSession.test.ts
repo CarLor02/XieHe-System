@@ -1170,3 +1170,59 @@ describe('纠正和派生模式的编辑事务', () => {
     expect(session.snapshot).toEqual(derived);
   });
 });
+
+describe('测量列表中的 Cobb 端椎编辑', () => {
+  it('每次修改独立撤销重做，保存恢复端椎与点位，重复选择不产生历史', async () => {
+    const { session, gateway } = await setup();
+    draw(session, 'cobb', points.slice(0, 4));
+    const measurement = session.snapshot!.measurements[0];
+    expect(
+      session.updateCobbEndpoint(measurement.id, 'upperVertebra', 'T1')
+    ).toBe(true);
+    await session.save();
+    const pending = session.snapshot;
+    const count = session.getState().history!.past.length;
+    expect(
+      session.updateCobbEndpoint(measurement.id, 'lowerVertebra', 'T3')
+    ).toBe(true);
+    expect(session.getState().history!.past.length).toBe(count + 1);
+    expect(session.getState().selection).toEqual({
+      kind: 'whole',
+      measurementId: measurement.id,
+    });
+    const bound = session.snapshot;
+    session.undo();
+    expect(session.snapshot).toEqual(pending);
+    expect(session.getState().dirty).toBe(false);
+    session.redo();
+    expect(session.snapshot).toEqual(bound);
+    const nextCount = session.getState().history!.past.length;
+    expect(
+      session.updateCobbEndpoint(measurement.id, 'lowerVertebra', 'T3')
+    ).toBe(true);
+    expect(session.getState().history!.past.length).toBe(nextCount);
+    expect(
+      session.updateCobbEndpoint(measurement.id, 'upperVertebra', 'T4')
+    ).toBe(false);
+    expect(session.snapshot).toEqual(bound);
+    expect(session.getState().history!.past.length).toBe(nextCount);
+    expect(await session.save()).toBe(true);
+    const saved = gateway.save.mock.calls.at(-1)![0].annotation;
+    const reopened = await setup(image(saved));
+    expect(
+      reopened.session.snapshot?.measurements.find(
+        item => item.id === measurement.id
+      )
+    ).toMatchObject({
+      upperVertebra: 'T1',
+      lowerVertebra: 'T3',
+      points: measurement.points,
+      keypointSynced: true,
+    });
+    expect(reopened.session.snapshot?.keypoints).toEqual(bound?.keypoints);
+    session.chooseTool('cobb');
+    expect(
+      session.updateCobbEndpoint(measurement.id, 'lowerVertebra', 'T5')
+    ).toBe(false);
+  });
+});

@@ -8,47 +8,14 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  getAnnotationDisplayName,
-  getColorForType,
-} from '@xiehe/imaging-catalog/annotations';
-import { memo, useSyncExternalStore } from 'react';
-import type { MeasurementData } from '@xiehe/imaging-core/contracts';
+import { useState, useSyncExternalStore } from 'react';
 import type { EditorReadoutStore } from '@/features/image-editor/application/EditorReadoutStore';
+import type { CobbEndpointField } from '@/features/image-editor/application/cobbEndpointRules';
+import { getVertebraOptions } from '@/features/image-editor/application/editorToolQueries';
 import { EditorButton } from './EditorButton';
+import { MeasurementRow } from './MeasurementRow';
+import { CobbEndpointPicker } from './CobbEndpointPicker';
 import { editorColors as c, editorStyles as s } from './editorTheme';
-
-const MeasurementRow = memo(function MeasurementRow({
-  measurement,
-  selected,
-  disabled,
-  onSelect,
-}: {
-  measurement: MeasurementData;
-  selected: boolean;
-  disabled: boolean;
-  onSelect: (id: string) => void;
-}) {
-  const color = getColorForType(measurement.type);
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`选择测量 ${getAnnotationDisplayName(measurement.type)}`}
-      accessibilityState={{ selected, disabled }}
-      disabled={disabled}
-      onPress={() => onSelect(measurement.id)}
-      style={[styles.item, selected && styles.selected]}
-    >
-      <View style={[styles.dot, { backgroundColor: color }]} />
-      <View style={{ flex: 1 }}>
-        <Text numberOfLines={1} style={styles.name}>
-          {getAnnotationDisplayName(measurement.type)}
-        </Text>
-      </View>
-      <Text style={[styles.value, { color }]}>{measurement.value || '—'}</Text>
-    </Pressable>
-  );
-});
 
 export function MeasurementPanel({
   readouts,
@@ -56,13 +23,24 @@ export function MeasurementPanel({
   onSelect,
   onDelete,
   onClose,
+  onUpdateCobbEndpoint,
 }: {
   readouts: EditorReadoutStore;
   disabled: boolean;
   onSelect: (id: string) => void;
   onDelete: () => void;
   onClose: () => void;
+  onUpdateCobbEndpoint: (
+    id: string,
+    field: CobbEndpointField,
+    vertebra: string
+  ) => boolean;
 }) {
+  const [editing, setEditing] = useState<{
+    measurementId: string;
+    field: CobbEndpointField;
+  } | null>(null);
+  const [endpointError, setEndpointError] = useState('');
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const state = useSyncExternalStore(
@@ -71,6 +49,7 @@ export function MeasurementPanel({
     readouts.getState
   );
   const measurements = state.history?.present.measurements ?? [];
+  const endpointOptions = getVertebraOptions(state.image?.description ?? '');
   const selection = state.selection;
   const interactionDisabled = disabled || state.dragging;
   const selectedId =
@@ -128,13 +107,44 @@ export function MeasurementPanel({
               </Text>
             )}
             {measurements.map(measurement => (
-              <MeasurementRow
-                key={measurement.id}
-                measurement={measurement}
-                selected={measurement.id === selectedId}
-                disabled={interactionDisabled}
-                onSelect={onSelect}
-              />
+              <View key={measurement.id}>
+                <MeasurementRow
+                  measurement={measurement}
+                  selected={measurement.id === selectedId}
+                  disabled={interactionDisabled}
+                  onSelect={onSelect}
+                  canEditEndpoints={endpointOptions.length > 0}
+                  onEditEndpoint={(id, field) => {
+                    onSelect(id);
+                    setEndpointError('');
+                    setEditing({ measurementId: id, field });
+                  }}
+                />
+                {editing?.measurementId === measurement.id && (
+                  <CobbEndpointPicker
+                    measurement={measurement}
+                    field={editing.field}
+                    options={endpointOptions}
+                    disabled={interactionDisabled}
+                    error={endpointError}
+                    onClose={() => setEditing(null)}
+                    onChange={value => {
+                      if (
+                        onUpdateCobbEndpoint(
+                          measurement.id,
+                          editing.field,
+                          value
+                        )
+                      )
+                        setEditing(null);
+                      else
+                        setEndpointError(
+                          readouts.getState().error || '当前暂时无法修改端椎'
+                        );
+                    }}
+                  />
+                )}
+              </View>
             ))}
           </ScrollView>
         </View>
@@ -177,26 +187,5 @@ const styles = StyleSheet.create({
   },
   list: { flexGrow: 0, flexShrink: 1 },
   items: { padding: 10, gap: 6 },
-  item: {
-    minHeight: 52,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: '#11182780',
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  selected: { backgroundColor: '#172D52', borderColor: '#3B82F6' },
-  dot: { width: 7, height: 7, borderRadius: 4 },
-  name: { fontSize: 12, color: c.text, fontWeight: '600' },
-  value: {
-    fontSize: 12,
-    fontWeight: '600',
-    maxWidth: '45%',
-    fontVariant: ['tabular-nums'],
-  },
   empty: { color: c.muted, padding: 12, fontSize: 12, textAlign: 'center' },
 });

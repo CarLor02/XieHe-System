@@ -317,6 +317,9 @@ export function ImageEditorScreen({
             <MeasurementPanel
               readouts={readouts}
               disabled={state.saving || !session.editable}
+              onUpdateCobbEndpoint={(id, field, vertebra) =>
+                session.updateCobbEndpoint(id, field, vertebra)
+              }
               onSelect={id => {
                 session.cancelDrawing();
                 session.select({ kind: 'whole', measurementId: id });
