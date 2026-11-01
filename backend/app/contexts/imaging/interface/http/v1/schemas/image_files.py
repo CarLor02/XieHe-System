@@ -6,10 +6,12 @@ from dataclasses import asdict
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field, JsonValue, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 from app.contexts.imaging.application.dto import ImageDetail, ImageSummary
 from app.contexts.imaging.domain import ImageFileStatusEnum, ImageFileTypeEnum
+
+from .annotation_json import AnnotationJson
 
 
 class ImageFileResponse(BaseModel):
@@ -34,7 +36,7 @@ class ImageFileResponse(BaseModel):
     team_names: list[str] = Field(default_factory=list)
     study_date: datetime | None
     description: str | None
-    annotation: dict[str, JsonValue] | None
+    annotation: AnnotationJson | None
     annotation_version: int = 0
     has_annotation: bool = False
     annotation_created_at: datetime | None = None

@@ -4,12 +4,14 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, Field, JsonValue, field_validator
+from pydantic import BaseModel, Field, field_validator
+
+from .annotation_json import AnnotationJson
 
 
 class SaveAnnotationRequest(BaseModel):
     expected_version: int = Field(ge=0)
-    annotation: dict[str, JsonValue]
+    annotation: AnnotationJson
 
 
 class AnnotationBatchRequest(BaseModel):
@@ -35,7 +37,7 @@ class AnnotationSaveResponse(BaseModel):
 
 class AnnotationBatchItemResult(BaseModel):
     id: int
-    annotation: dict[str, JsonValue] | None
+    annotation: AnnotationJson | None
     annotation_version: int
 
 

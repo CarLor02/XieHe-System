@@ -4,9 +4,11 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, JsonValue
+from pydantic import BaseModel
 
 from app.contexts.teams.domain import MembershipStatus, TeamRole
+
+from .annotation_json import AnnotationJson
 
 
 class AnnotationHistoryItemResult(BaseModel):
@@ -22,13 +24,13 @@ class AnnotationEventItemResult(BaseModel):
     item_kind: str
     item_id: str
     action: str
-    before_payload: dict[str, JsonValue] | None
-    after_payload: dict[str, JsonValue] | None
+    before_payload: AnnotationJson | None
+    after_payload: AnnotationJson | None
 
 
 class AnnotationHistoryVersionResult(BaseModel):
     version: int
-    snapshot: dict[str, JsonValue]
+    snapshot: AnnotationJson
     source: str
     reason: str
     actor_id: int | None
