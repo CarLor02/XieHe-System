@@ -13,12 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getToolsForExamType } from '@xiehe/imaging-catalog/tools';
-import type { AvtTarget, FemoralHeadMode } from '@xiehe/imaging-core/contracts';
-import {
-  AVT_DISC_TARGETS,
-  AVT_VERTEBRA_TARGETS,
-  getAvtTargetLabel,
-} from '@xiehe/imaging-core/measurements/ap';
+import type { FemoralHeadMode } from '@xiehe/imaging-core/contracts';
 import { getKeypointGroupsForExamType } from '@xiehe/imaging-core/keypoints';
 import {
   BasicMode,
@@ -38,6 +33,7 @@ import type {
   ImageEditorSession,
   EditorState,
 } from '@/features/image-editor/application/ImageEditorSession';
+import { EditorAvtTargets } from './EditorAvtTargets';
 import { EditorButton } from './EditorButton';
 import { ToolIcon } from './ToolIcon';
 import { EditorKeypointTools } from './EditorKeypointTools';
@@ -72,10 +68,6 @@ export function EditorToolSheet({
     String(session.snapshot?.standardDistance ?? 100)
   );
   const [mode, setMode] = useState<FemoralHeadMode>('single');
-  const [target, setTarget] = useState<AvtTarget>({
-    type: 'vertebra',
-    vertebra: 'T12',
-  });
   const [upper, setUpper] = useState<string | null>(null);
   const [lower, setLower] = useState<string | null>(null);
   const { height } = useWindowDimensions();
@@ -316,34 +308,15 @@ export function EditorToolSheet({
                   </View>
                 )}
                 {configured === 'avt' && (
-                  <>
-                    <Text style={s.muted}>
-                      选择顶椎或椎间盘，参考线由共享规则确定
-                    </Text>
-                    <View style={styles.chips}>
-                      {[
-                        ...AVT_VERTEBRA_TARGETS.map(vertebra => ({
-                          type: 'vertebra' as const,
-                          vertebra,
-                        })),
-                        ...AVT_DISC_TARGETS,
-                      ].map(item => (
-                        <Pressable
-                          key={getAvtTargetLabel(item)}
-                          onPress={() => setTarget(item)}
-                          style={[
-                            styles.chip,
-                            getAvtTargetLabel(item) ===
-                              getAvtTargetLabel(target) && styles.activeTool,
-                          ]}
-                        >
-                          <Text style={styles.chipText}>
-                            {getAvtTargetLabel(item)}
-                          </Text>
-                        </Pressable>
-                      ))}
-                    </View>
-                  </>
+                  <EditorAvtTargets
+                    measurements={session.snapshot?.measurements ?? []}
+                    disabled={!session.editable}
+                    onSelect={avtTarget => {
+                      session.chooseTool('avt', { avtTarget });
+                      setConfigured('');
+                      onClose();
+                    }}
+                  />
                 )}
                 {configured === 'lateral-cobb' && (
                   <>
@@ -385,42 +358,43 @@ export function EditorToolSheet({
                     ))}
                   </>
                 )}
-                <EditorButton
-                  primary
-                  label="开始标注"
-                  icon="create-outline"
-                  disabled={
-                    !session.editable ||
-                    hasUniqueAnnotationForTool(
-                      session.snapshot?.measurements ?? [],
-                      {
-                        id: configured,
-                        name: configured,
-                      }
-                    ) ||
-                    (configured === 'lateral-cobb' &&
-                      !!upper &&
-                      upper === lower)
-                  }
-                  onPress={() => {
-                    session.chooseTool(configured, {
-                      ...(['pi', 'pt', 'tpa'].includes(configured)
-                        ? { pelvicMode: mode }
-                        : {}),
-                      ...(configured === 'avt' ? { avtTarget: target } : {}),
-                      ...(configured === 'lateral-cobb'
-                        ? {
-                            cobbEndpoints: {
-                              upperVertebra: upper,
-                              lowerVertebra: lower,
-                            },
-                          }
-                        : {}),
-                    });
-                    setConfigured('');
-                    onClose();
-                  }}
-                />
+                {configured !== 'avt' && (
+                  <EditorButton
+                    primary
+                    label="开始标注"
+                    icon="create-outline"
+                    disabled={
+                      !session.editable ||
+                      hasUniqueAnnotationForTool(
+                        session.snapshot?.measurements ?? [],
+                        {
+                          id: configured,
+                          name: configured,
+                        }
+                      ) ||
+                      (configured === 'lateral-cobb' &&
+                        !!upper &&
+                        upper === lower)
+                    }
+                    onPress={() => {
+                      session.chooseTool(configured, {
+                        ...(['pi', 'pt', 'tpa'].includes(configured)
+                          ? { pelvicMode: mode }
+                          : {}),
+                        ...(configured === 'lateral-cobb'
+                          ? {
+                              cobbEndpoints: {
+                                upperVertebra: upper,
+                                lowerVertebra: lower,
+                              },
+                            }
+                          : {}),
+                      });
+                      setConfigured('');
+                      onClose();
+                    }}
+                  />
+                )}
               </View>
             )}
             <View style={styles.configuration}>

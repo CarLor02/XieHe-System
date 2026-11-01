@@ -42,8 +42,7 @@ import {
 } from '@xiehe/imaging-core/measurements';
 import {
   createAvtPlacementSession,
-  getAvtTargetKey,
-  isAvtMetadata,
+  isSameAvtTarget,
 } from '@xiehe/imaging-core/measurements/ap';
 import type { PointRef } from '@xiehe/imaging-core/bindings';
 import { bindSelectedPoints } from './manualBindings';
@@ -322,11 +321,10 @@ export class ImageEditorSession {
     }
     const snapshot = this.snapshot!;
     if (toolId === 'avt' && options.avtTarget) {
-      const targetKey = getAvtTargetKey(options.avtTarget);
       const existing = snapshot.measurements.find(
         item =>
-          isAvtMetadata(item.avtMetadata) &&
-          getAvtTargetKey(item.avtMetadata.target) === targetKey
+          getAnnotationTypeId(item.type) === 'avt' &&
+          isSameAvtTarget(item, options.avtTarget!)
       );
       if (existing) {
         this.update({
@@ -386,7 +384,8 @@ export class ImageEditorSession {
       this.state.drawing,
       this.snapshot,
       point,
-      pixelsPerImageUnit
+      pixelsPerImageUnit,
+      this.context
     );
     this.update({
       drawing: result.session,

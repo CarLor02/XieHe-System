@@ -678,7 +678,9 @@ describe('mobile image editing workflow', () => {
       for (let index = 0; index < clicks; index++)
         session.placePoint(points[index], 1);
       expect(session.getState().drawing).toBeNull();
-      expect(session.snapshot?.measurements[0]).toMatchObject({
+      expect(
+        session.snapshot?.measurements.find(m => m.type.toLowerCase() === 'avt')
+      ).toMatchObject({
         type: 'avt',
         avtMetadata: {
           schemaVersion: 2,
@@ -689,7 +691,14 @@ describe('mobile image editing workflow', () => {
       expect(session.getState().history?.past).toHaveLength(1);
       session.chooseTool('avt', { avtTarget: { type: 'vertebra', vertebra } });
       expect(session.getState().drawing).toBeNull();
-      expect(session.snapshot?.measurements).toHaveLength(1);
+      expect(
+        session.snapshot?.measurements.filter(
+          m => m.type.toLowerCase() === 'avt'
+        )
+      ).toHaveLength(1);
+      expect(
+        session.snapshot?.measurements.some(m => m.type.toLowerCase() === 'css')
+      ).toBe(reference === 'csvl');
       session.undo();
       expect(session.snapshot?.keypoints).toHaveLength(0);
     }
@@ -715,6 +724,118 @@ describe('mobile image editing workflow', () => {
       x: 500,
       y: 60,
     });
+  });
+
+  it('derives CSS after TTS, records one history action and preserves bidirectional sync after saving', async () => {
+    const { session, gateway } = await setup();
+    session.chooseTool('tts');
+    points.slice(0, 3).forEach(p => session.placePoint(p, 1));
+    expect(session.snapshot?.measurements).toHaveLength(0);
+    session.cancelDrawing();
+    expect(session.snapshot?.keypoints).toHaveLength(0);
+    draw(session, 'tts', points.slice(0, 4));
+    const tts = session.snapshot!.measurements.find(
+      m => m.type.toLowerCase() === 'tts'
+    )!;
+    const css = session.snapshot!.measurements.find(
+      m => m.type.toLowerCase() === 'css'
+    )!;
+    expect(css.points).toEqual(tts.points.slice(2));
+    expect(session.snapshot!.measurements).toHaveLength(2);
+    expect(session.getState().history?.past).toHaveLength(1);
+    session.undo();
+    expect(session.snapshot?.measurements).toHaveLength(0);
+    expect(session.snapshot?.keypoints).toHaveLength(0);
+    session.redo();
+    expect(session.snapshot?.measurements).toHaveLength(2);
+    session.chooseTool('css');
+    expect(session.getState().drawing).toBeNull();
+    expect(session.getState().selection).toMatchObject({
+      measurementId: css.id,
+    });
+    expect(await session.save()).toBe(true);
+    const reopened = (
+      await setup(image(gateway.save.mock.calls[0][0].annotation))
+    ).session;
+    reopened.beginDrag({ kind: 'point', measurementId: tts.id, pointIndex: 2 });
+    reopened.moveDrag({ x: 160, y: 480 });
+    reopened.endDrag();
+    expect(
+      reopened.snapshot?.measurements.find(m => m.id === css.id)?.points[0]
+    ).toEqual({ x: 160, y: 480 });
+    reopened.beginDrag({ kind: 'point', measurementId: css.id, pointIndex: 1 });
+    reopened.moveDrag({ x: 350, y: 500 });
+    reopened.endDrag();
+    expect(
+      reopened.snapshot?.measurements.find(m => m.id === tts.id)?.points[3]
+    ).toEqual({ x: 350, y: 500 });
+    expect(reopened.snapshot?.measurements).toHaveLength(2);
+
+    // 重开/拖动不触发新增；已保存但缺少 CSS 的标注也不能在拖动中突然多出一项。
+    const saved = gateway.save.mock.calls[0][0].annotation;
+    const onlyTts = {
+      ...saved,
+      measurements: saved.measurements.filter(m => m.id === tts.id),
+    };
+    const withoutCss = (await setup(image(onlyTts))).session;
+    withoutCss.beginDrag({
+      kind: 'point',
+      measurementId: tts.id,
+      pointIndex: 2,
+    });
+    withoutCss.moveDrag({ x: 160, y: 490 });
+    withoutCss.endDrag();
+    expect(withoutCss.snapshot?.measurements).toHaveLength(1);
+  });
+
+  it('reuses AVT reference points, keeps disc anchors horizontal, and synchronizes the reference after reopening', async () => {
+    const { session, gateway } = await setup();
+    draw(session, 'css', [
+      { x: 100, y: 600 },
+      { x: 300, y: 630 },
+    ]);
+    const existingKeypoints = structuredClone(session.snapshot!.keypoints);
+    const target = {
+      type: 'disc',
+      upperVertebra: 'T12',
+      lowerVertebra: 'L1',
+    } as const;
+    session.chooseTool('avt', { avtTarget: target });
+    session.placePoint({ x: 400, y: 300 }, 1);
+    session.placePoint({ x: 150, y: 450 }, 1);
+    const avt = session.snapshot!.measurements.find(m => m.type === 'avt')!;
+    expect(avt.points.slice(0, 2)).toEqual([
+      { x: 150, y: 300 },
+      { x: 400, y: 300 },
+    ]);
+    expect(avt.points).toHaveLength(4);
+    expect(session.snapshot!.keypoints).toEqual(existingKeypoints);
+    session.beginDrag({ kind: 'point', measurementId: avt.id, pointIndex: 0 });
+    session.moveDrag({ x: 170, y: 320 });
+    session.endDrag();
+    expect(
+      session.snapshot?.measurements
+        .find(m => m.id === avt.id)
+        ?.points.slice(0, 2)
+    ).toEqual([
+      { x: 170, y: 320 },
+      { x: 400, y: 320 },
+    ]);
+    expect(await session.save()).toBe(true);
+    const reopened = (
+      await setup(image(gateway.save.mock.calls[0][0].annotation))
+    ).session;
+    reopened.beginDrag({ kind: 'keypoint', keypointId: 'SR' });
+    reopened.moveDrag({ x: 350, y: 650 });
+    reopened.endDrag();
+    expect(
+      reopened.snapshot?.measurements.find(m => m.id === avt.id)?.points[2]
+    ).toEqual({ x: 350, y: 650 });
+    reopened.chooseTool('avt', { avtTarget: target });
+    expect(reopened.getState().drawing).toBeNull();
+    expect(
+      reopened.snapshot?.measurements.filter(m => m.type === 'avt')
+    ).toHaveLength(1);
   });
 
   it('keeps a unique measurement unique and selects the existing instance', async () => {
@@ -764,19 +885,22 @@ describe('mobile image editing workflow', () => {
     ).toBe('bilateral');
     session.chooseTool('pt', { pelvicMode: 'bilateral' });
     expect(session.getState().drawing).toBeNull();
-    expect(session.snapshot?.measurements).toHaveLength(2);
+    expect(session.snapshot?.measurements).toHaveLength(3);
     const id = session.snapshot!.measurements[0].id;
     session.beginDrag({ kind: 'point', measurementId: id, pointIndex: 1 });
     session.moveDrag({ x: 350, y: 150 });
     session.endDrag();
     expect(session.snapshot?.measurements[0].points).toEqual(
-      session.snapshot?.measurements[1].points
+      session.snapshot?.measurements.find(m => m.type.toLowerCase() === 'pt')
+        ?.points
     );
     session.select({ kind: 'whole', measurementId: id });
     session.deleteSelected();
-    expect(session.snapshot?.measurements).toHaveLength(0);
+    expect(
+      session.snapshot?.measurements.map(m => m.type.toLowerCase())
+    ).toEqual(['ss']);
     session.undo();
-    expect(session.snapshot?.measurements).toHaveLength(2);
+    expect(session.snapshot?.measurements).toHaveLength(3);
   });
 
   it('retains a failed or conflicting save and never retries with a newer version automatically', async () => {

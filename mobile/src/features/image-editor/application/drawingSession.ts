@@ -39,7 +39,7 @@ import {
   createPelvicMeasurementMetadata,
   getPelvicToolPointCount,
 } from '@xiehe/imaging-core/measurements/lateral';
-import { confirmKeypoints, synchronizeKeypoints } from './editorSnapshot';
+import { confirmKeypoints } from './editorSnapshot';
 import { createKeypointDrawingSequence } from './keypointTools';
 import { measurementCalculator } from './measurementValues';
 
@@ -182,7 +182,8 @@ export function placeDrawingPoint(
   session: DrawingSession,
   snapshot: AnnotationEditorSnapshot,
   point: Point,
-  pixelsPerImageUnit: number
+  pixelsPerImageUnit: number,
+  context: CalculationContext
 ): {
   session: DrawingSession;
   snapshot: AnnotationEditorSnapshot;
@@ -202,7 +203,7 @@ export function placeDrawingPoint(
         source: AnnotationSource.MANUAL,
         confidence: 1,
       });
-      const next = { ...snapshot, keypoints };
+      const next = confirmKeypoints(snapshot, keypoints, context);
       const remaining = createAvtPlacementSession(
         session.avtTarget,
         new Set(keypoints.map(k => k.id))
@@ -312,7 +313,7 @@ export function completeDrawing(
         : {}),
     });
     if (!measurement) throw new Error('AVT 点位尚未完整，请继续补充');
-    return synchronizeKeypoints(
+    return confirmKeypoints(
       {
         ...snapshot,
         measurements: [
@@ -366,7 +367,8 @@ export function completeDrawing(
       result.measurement
     );
   const next = { ...snapshot, measurements: result.measurements };
-  return keypoints !== snapshot.keypoints
-    ? synchronizeKeypoints(next, keypoints, context)
+  // 完成绘制是显式确认：共享点满足后补齐固定测量；拖动仍只重算已有项。
+  return rule || session.cobbEndpoints
+    ? confirmKeypoints(next, keypoints, context)
     : next;
 }
