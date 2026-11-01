@@ -98,6 +98,17 @@ npm run build:ios --workspace @xiehe/mobile
 
 Android 原生开发构建需配置 Android Studio、Java 和对应 SDK，并连接调试设备：
 
+构建进程必须能定位 Android SDK。Linux 常见安装位置是 `$HOME/Android/Sdk`，请按本机实际路径设置：
+
+```bash
+export ANDROID_HOME="$HOME/Android/Sdk"
+```
+
+可以将该设置加入自己的 shell 配置，使后续终端自动继承。若已生成 `mobile/android/`，
+也可以在本机 `mobile/android/local.properties` 中设置 `sdk.dir=/实际/Android/Sdk/路径`。
+该文件不提交到 Git；执行 `expo prebuild --clean` 重新生成原生目录后需要恢复。
+Expo 能自动找到默认位置的 ADB 并识别手机，不代表 Gradle 已获得 SDK 路径。
+
 ```bash
 npm run build:android --workspace @xiehe/mobile
 # 安装开发构建后，后续日常启动
