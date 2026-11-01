@@ -376,28 +376,35 @@ export function createNextBoundCobbMeasurement({
   existingMeasurements: MeasurementData[];
   calculator: MeasurementValueCalculator;
 }): MeasurementData | null {
-  if (isLateralExamType(examType)) {
-    return createLateralCobbMeasurement({
-      upperVertebra,
-      lowerVertebra,
-      keypoints,
-      calculationContext,
-      measurementType: getNextCobbType(existingMeasurements, 'lateral-cobb'),
-      keypointSynced: true,
-      calculator,
-    });
+  const measurement = isLateralExamType(examType)
+    ? createLateralCobbMeasurement({
+        upperVertebra,
+        lowerVertebra,
+        keypoints,
+        calculationContext,
+        measurementType: getNextCobbType(existingMeasurements, 'lateral-cobb'),
+        keypointSynced: true,
+        calculator,
+      })
+    : createCobbMeasurement({
+        upperVertebra,
+        lowerVertebra,
+        keypoints,
+        examType,
+        calculationContext,
+        measurementType: getNextCobbType(existingMeasurements),
+        keypointSynced: true,
+        calculator,
+      });
+  if (!measurement) return null;
+  // 序号偏移会改变端椎但保留旧实体 ID；再次派生原端椎组合时不能复用已占用的 ID。
+  const existingIds = new Set(existingMeasurements.map(item => item.id));
+  const baseId = measurement.id;
+  let id = baseId;
+  for (let suffix = 2; existingIds.has(id); suffix += 1) {
+    id = `${baseId}-${suffix}`;
   }
-
-  return createCobbMeasurement({
-    upperVertebra,
-    lowerVertebra,
-    keypoints,
-    examType,
-    calculationContext,
-    measurementType: getNextCobbType(existingMeasurements),
-    keypointSynced: true,
-    calculator,
-  });
+  return id === baseId ? measurement : { ...measurement, id };
 }
 
 export function createBoundCobbMeasurement({
