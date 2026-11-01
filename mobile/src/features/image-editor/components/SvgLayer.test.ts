@@ -8,7 +8,7 @@ import type { DrawingBounds } from './annotationLayers';
 import type { Viewport } from './interaction/canvasGestureModel';
 import { SvgLayer } from './SvgLayer';
 
-type MatrixProps = { matrix?: number[] };
+type MatrixProps = { matrix?: number[]; transform?: string };
 type RootProps = {
   style: { left: number; top: number };
   width: number;
@@ -18,7 +18,7 @@ type RootProps = {
 };
 const native = vi.hoisted(() => ({
   root: null as RootProps | null,
-  group: {} as MatrixProps,
+  groups: [] as MatrixProps[],
   applied: {} as MatrixProps,
   pending: null as (() => MatrixProps) | null,
 }));
@@ -32,7 +32,7 @@ vi.mock('react-native-svg', async () => {
       return createElement(Fragment, null, props.children);
     },
     G: (props: MatrixProps & { children?: ReactNode }) => {
-      native.group = props;
+      native.groups.push(props);
       return createElement(Fragment, null, props.children);
     },
   };
@@ -63,33 +63,53 @@ const context = {
 const originalBounds = { x: 64, y: 128, width: 192, height: 192 };
 const point = { x: 300, y: 400 };
 
-function renderLayer(bounds?: DrawingBounds, current: Viewport = context) {
+function renderLayer(
+  bounds?: DrawingBounds,
+  current: Viewport = context,
+  rendered: Viewport = context
+) {
   const viewport = { get: () => current } as SharedValue<Viewport>;
-  const props = { context, viewport, bounds, children: null };
+  native.groups = [];
+  const props = {
+    context: { ...context, ...rendered },
+    viewport,
+    bounds,
+    children: null,
+  };
   renderToStaticMarkup(createElement(SvgLayer, props));
 }
 
 // 按 SVG 的坐标契约组合原生布局、viewBox 和组矩阵，核对最终屏幕位置。
 function screenPoint(projected: Point) {
   const root = native.root!;
-  const [a, b, c, d, tx, ty] = native.group.matrix ?? [1, 0, 0, 1, 0, 0];
+  let transformed = projected;
+  for (const group of [...native.groups].reverse()) {
+    const [a, b, c, d, tx, ty] =
+      group.matrix ??
+      (group.transform
+        ? group.transform
+            .slice(7, -1)
+            .split(/[\s,]+/)
+            .map(Number)
+        : [1, 0, 0, 1, 0, 0]);
+    transformed = {
+      x: a * transformed.x + c * transformed.y + tx,
+      y: b * transformed.x + d * transformed.y + ty,
+    };
+  }
   const [x, y, width, height] = root.viewBox
     ? root.viewBox.split(/\s+/).map(Number)
     : [0, 0, root.width, root.height];
   return {
-    x:
-      root.style.left +
-      ((a * projected.x + c * projected.y + tx - x) * root.width) / width,
-    y:
-      root.style.top +
-      ((b * projected.x + d * projected.y + ty - y) * root.height) / height,
+    x: root.style.left + ((transformed.x - x) * root.width) / width,
+    y: root.style.top + ((transformed.y - y) * root.height) / height,
   };
 }
 
 describe('SVG layer coordinate handoff', () => {
   beforeEach(() => {
     native.root = null;
-    native.group = {};
+    native.groups = [];
     native.applied = {};
     native.pending = null;
   });
@@ -126,5 +146,34 @@ describe('SVG layer coordinate handoff', () => {
       expect(actual.x).toBeCloseTo(expected.x, 8);
       expect(actual.y).toBeCloseTo(expected.y, 8);
     }
+  });
+
+  it.each([
+    { imageScale: 1, imagePosition: { x: 95, y: -60 } },
+    { imageScale: 2.3, imagePosition: { x: -30, y: 140 } },
+  ])(
+    'does not reapply the viewport when React commits a completed gesture: %j',
+    current => {
+      renderLayer(undefined, current);
+      native.applied = native.pending!();
+      const expected = imageToScreen(point, { ...context, ...current });
+      // UI 已到终点；React 更新投影坐标时，故意保留上一帧的动画属性。
+      renderLayer(undefined, current, current);
+      const actual = screenPoint(expected);
+      expect(actual.x).toBeCloseTo(expected.x, 8);
+      expect(actual.y).toBeCloseTo(expected.y, 8);
+      native.applied = native.pending!();
+      renderLayer(undefined, current, current);
+      expect(screenPoint(expected).x).toBeCloseTo(expected.x, 8);
+      expect(screenPoint(expected).y).toBeCloseTo(expected.y, 8);
+    }
+  );
+
+  it('mounts a new cropped drag layer at the current viewport after panning and zooming', () => {
+    const current = { imageScale: 1.5, imagePosition: { x: 35, y: 75 } };
+    const expected = imageToScreen(point, { ...context, ...current });
+    renderLayer(originalBounds, current, current);
+    expect(screenPoint(expected).x).toBeCloseTo(expected.x, 8);
+    expect(screenPoint(expected).y).toBeCloseTo(expected.y, 8);
   });
 });

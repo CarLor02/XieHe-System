@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Platform } from 'react-native';
 import Svg, { G } from 'react-native-svg';
 import Animated, {
@@ -14,6 +14,10 @@ import type { DrawingBounds } from './annotationLayers';
 
 const AnimatedGroup = Animated.createAnimatedComponent(G);
 const isWeb = Platform.OS === 'web';
+const baseViewport: Viewport = {
+  imageScale: 1,
+  imagePosition: { x: 0, y: 0 },
+};
 
 export function SvgLayer({
   children,
@@ -38,9 +42,15 @@ export function SvgLayer({
     y = bounds?.y ?? 0;
   const width = bounds?.width ?? context.containerSize?.width ?? 0,
     height = bounds?.height ?? context.containerSize?.height ?? 0;
+  // 声明式初值只用于挂载，后续 React 重绘不能把原生视口写回旧位置。
+  const [initialMatrix] = useState(() =>
+    viewportMatrix(rendered, baseViewport, center)
+  );
+  const projectionInverse = viewportMatrix(baseViewport, rendered, center);
   const props = useAnimatedProps<{ matrix?: number[]; transform?: string }>(
     () => {
-      const matrix = viewportMatrix(viewport.get(), rendered, center);
+      // 动画始终相对固定基准，React 提交新投影时无需异步归零旧的视口差值。
+      const matrix = viewportMatrix(viewport.get(), baseViewport, center);
       return isWeb ? { transform: `matrix(${matrix.join(' ')})` } : { matrix };
     }
   );
@@ -54,7 +64,14 @@ export function SvgLayer({
       viewBox={bounds ? `${x} ${y} ${width} ${height}` : undefined}
       preserveAspectRatio="none"
     >
-      <AnimatedGroup animatedProps={props}>{children}</AnimatedGroup>
+      <AnimatedGroup
+        // G 的声明式入口是 transform；matrix 供原生动画写入，初次挂载也必须对齐当前视口。
+        transform={`matrix(${initialMatrix.join(' ')})`}
+        animatedProps={props}
+      >
+        {/* 逆投影与子节点坐标同次提交，避免新坐标再次叠加上一帧的平移/缩放。 */}
+        <G transform={`matrix(${projectionInverse.join(' ')})`}>{children}</G>
+      </AnimatedGroup>
     </Svg>
   );
 }

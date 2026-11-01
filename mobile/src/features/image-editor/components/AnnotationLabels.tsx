@@ -54,23 +54,12 @@ export const AnnotationLabels = memo(function AnnotationLabels({
           context
         );
         const label = `${getAnnotationDisplayName(measurement.type)}${measurement.value ? `  ${measurement.value}` : ''}`;
-        const width = Math.min(210, label.length * 7 + 16);
-        const x = Math.max(
-          8,
-          Math.min(
-            (context.containerSize?.width ?? 300) - width - 68,
-            point.x + 12
-          )
-        );
-        const y = Math.max(
-          24,
-          Math.min((context.containerSize?.height ?? 300) - 8, point.y - 10)
-        );
         return (
           <SvgText
             key={measurement.id}
-            x={x + 7}
-            y={y}
+            // 标签跟随标注锚点；超出画布由 SVG 裁剪，不因视口边缘或文字长度重新定位。
+            x={point.x + 19}
+            y={point.y - 10}
             fill={color}
             fontSize={11}
             fontWeight="500"
