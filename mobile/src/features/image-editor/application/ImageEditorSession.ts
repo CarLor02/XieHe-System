@@ -414,14 +414,30 @@ export class ImageEditorSession {
               standardDistancePoints: points,
             })
           : completed;
-      // 多次落点及补充关键点作为一次完整操作进入历史，取消时回到落点前。
+      const sequence = drawing.keypointSequence;
+      const nextDrawing =
+        sequence && sequence.currentIndex + 1 < sequence.keypointIds.length
+          ? {
+              ...drawing,
+              points: [],
+              keypointSequence: {
+                ...sequence,
+                currentIndex: sequence.currentIndex + 1,
+              },
+            }
+          : null;
+      // 测量绘制作为一次操作；独立关键点逐点提交，取消连续标注时保留已完成的点。
       if (this.drawingBase)
         this.state = {
           ...this.state,
           history: { ...this.state.history!, present: this.drawingBase },
         };
-      this.drawingBase = null;
-      this.update({ drawing: null, drawingPreview: [], tool: 'hand' });
+      this.drawingBase = nextDrawing ? historyPolicy.clone(next) : null;
+      this.update({
+        drawing: nextDrawing,
+        drawingPreview: [],
+        tool: nextDrawing ? drawing.toolId : sequence ? 'keypoint' : 'hand',
+      });
       this.commit(next);
     } catch (cause) {
       this.cancelDrawing();
@@ -429,12 +445,13 @@ export class ImageEditorSession {
     }
   }
   cancelDrawing() {
+    const keypointDrawing = !!this.state.drawing?.keypointSequence;
     const present = this.drawingBase;
     this.drawingBase = null;
     this.update({
       drawing: null,
       drawingPreview: [],
-      tool: 'hand',
+      tool: keypointDrawing ? 'keypoint' : 'hand',
       ...(present && this.state.history
         ? { history: { ...this.state.history, present } }
         : {}),

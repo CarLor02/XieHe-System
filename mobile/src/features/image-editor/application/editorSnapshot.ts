@@ -6,7 +6,10 @@ import {
   keypointsToPersistedLayer,
   type KeypointAnnotation,
 } from '@xiehe/imaging-core/keypoints';
-import { recalculateExistingMeasurementsFromKeypoints } from '@xiehe/imaging-core/measurement-keypoint-sync';
+import {
+  deriveMissingFixedMeasurementsFromKeypoints,
+  recalculateExistingMeasurementsFromKeypoints,
+} from '@xiehe/imaging-core/measurement-keypoint-sync';
 import {
   calculateMeasurementResults,
   type CalculationContext,
@@ -104,5 +107,24 @@ export function synchronizeKeypoints(
       snapshot.pointBindings,
       measurements
     ),
+  };
+}
+
+/** 显式落点后补齐可确定的固定测量；拖动仍只重算已有项。 */
+export function confirmKeypoints(
+  snapshot: AnnotationEditorSnapshot,
+  keypoints: KeypointAnnotation[],
+  context: CalculationContext
+): AnnotationEditorSnapshot {
+  const next = synchronizeKeypoints(snapshot, keypoints, context);
+  return {
+    ...next,
+    measurements: deriveMissingFixedMeasurementsFromKeypoints({
+      previousMeasurements: next.measurements,
+      keypoints,
+      examType: context.examType ?? '',
+      calculationContext: context,
+      calculator: measurementCalculator,
+    }),
   };
 }

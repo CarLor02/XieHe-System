@@ -171,6 +171,7 @@ export function EditorCanvas({
               showKeypoints={
                 showKeypoints ||
                 state.tool === 'keypoint' ||
+                !!state.drawing?.keypointSequence ||
                 state.tool === 'avt'
               }
               draftPoints={state.drawing?.points ?? []}

@@ -25,6 +25,7 @@ import { getMeasurementDeriveVertebraOrder } from '@xiehe/imaging-core/anatomy';
 import {
   isAuxiliaryToolbarTool,
   getAnnotationTypeId,
+  hasUniqueAnnotationForTool,
 } from '@xiehe/imaging-core/measurements';
 import { Icon } from '@/shared/ui';
 import type {
@@ -33,6 +34,7 @@ import type {
 } from '@/features/image-editor/application/ImageEditorSession';
 import { EditorButton } from './EditorButton';
 import { ToolIcon } from './ToolIcon';
+import { EditorKeypointTools } from './EditorKeypointTools';
 import { editorColors as c, editorStyles as s } from './editorTheme';
 
 export function EditorToolSheet({
@@ -47,6 +49,11 @@ export function EditorToolSheet({
   onClose: () => void;
 }) {
   const [configured, setConfigured] = useState('');
+  const [tab, setTab] = useState<'measurement' | 'keypoint'>(
+    state.tool === 'keypoint' || state.drawing?.keypointSequence
+      ? 'keypoint'
+      : 'measurement'
+  );
   const [distance, setDistance] = useState(
     String(session.snapshot?.standardDistance ?? 100)
   );
@@ -60,7 +67,8 @@ export function EditorToolSheet({
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const tools = getToolsForExamType(session.context.examType);
-  const vertebrae = getKeypointGroupsForExamType(session.context.examType)
+  const keypointGroups = getKeypointGroupsForExamType(session.context.examType);
+  const vertebrae = keypointGroups
     .map(group => group.name)
     .filter(name => getMeasurementDeriveVertebraOrder(name) !== null)
     .sort(
@@ -92,6 +100,11 @@ export function EditorToolSheet({
         {tools
           .filter(tool => isAuxiliaryToolbarTool(tool.id) === auxiliary)
           .map(tool => {
+            const exists = hasUniqueAnnotationForTool(
+              session.snapshot?.measurements ?? [],
+              tool
+            );
+            const disabled = !session.editable || exists;
             const count =
               session.snapshot?.measurements.filter(
                 m => getAnnotationTypeId(m.type) === tool.id
@@ -109,13 +122,18 @@ export function EditorToolSheet({
             return (
               <Pressable
                 key={tool.id}
-                disabled={!session.editable}
+                disabled={disabled}
                 accessibilityRole="button"
                 accessibilityLabel={`绘制${label}`}
-                accessibilityState={{ selected, disabled: !session.editable }}
+                accessibilityState={{ selected, disabled }}
+                accessibilityHint={exists ? '该测量已存在' : undefined}
                 onPress={() => activate(tool.id)}
                 onLongPress={() => setConfigured(tool.id)}
-                style={[styles.tool, selected && styles.activeTool]}
+                style={[
+                  styles.tool,
+                  selected && styles.activeTool,
+                  disabled && styles.disabledTool,
+                ]}
               >
                 <ToolIcon
                   toolId={tool.id}
@@ -126,11 +144,13 @@ export function EditorToolSheet({
                   {label}
                 </Text>
                 <Text style={styles.pointCount}>
-                  {['avt', 'pi', 'pt', 'tpa'].includes(tool.id)
-                    ? '分步放置'
-                    : tool.pointsNeeded
-                      ? `${tool.pointsNeeded} 点`
-                      : '自由绘制'}
+                  {exists
+                    ? '已存在'
+                    : ['avt', 'pi', 'pt', 'tpa'].includes(tool.id)
+                      ? '分步放置'
+                      : tool.pointsNeeded
+                        ? `${tool.pointsNeeded} 点`
+                        : '自由绘制'}
                 </Text>
                 {!!count && <Text style={styles.badge}>{count}</Text>}
               </Pressable>
@@ -183,26 +203,40 @@ export function EditorToolSheet({
               <EditorButton
                 label="移动 / 编辑"
                 icon="hand-left-outline"
-                active={state.tool === 'hand'}
+                active={state.tool === 'hand' || state.tool === 'keypoint'}
+                disabled={!session.editable}
                 onPress={() => {
-                  session.chooseTool('hand');
+                  session.chooseTool(tab === 'keypoint' ? 'keypoint' : 'hand');
                   onClose();
                 }}
               />
-              {!!session.snapshot?.keypoints.length && (
+            </View>
+            {!!keypointGroups.length && (
+              <View style={s.row}>
+                <EditorButton
+                  label="测量标注"
+                  active={tab === 'measurement'}
+                  onPress={() => {
+                    setTab('measurement');
+                    setConfigured('');
+                  }}
+                />
                 <EditorButton
                   label="关键点"
                   icon="locate-outline"
-                  active={state.tool === 'keypoint'}
+                  active={tab === 'keypoint'}
                   onPress={() => {
-                    session.chooseTool('keypoint');
-                    onClose();
+                    setTab('keypoint');
+                    setConfigured('');
                   }}
                 />
-              )}
-            </View>
-            {!configured && renderGroup(false)}
-            {!configured && renderGroup(true)}
+              </View>
+            )}
+            {tab === 'keypoint' && (
+              <EditorKeypointTools session={session} onClose={onClose} />
+            )}
+            {tab === 'measurement' && !configured && renderGroup(false)}
+            {tab === 'measurement' && !configured && renderGroup(true)}
             {!!configured && (
               <View style={styles.configuration}>
                 <EditorButton
@@ -306,6 +340,13 @@ export function EditorToolSheet({
                   icon="create-outline"
                   disabled={
                     !session.editable ||
+                    hasUniqueAnnotationForTool(
+                      session.snapshot?.measurements ?? [],
+                      {
+                        id: configured,
+                        name: configured,
+                      }
+                    ) ||
                     (configured === 'lateral-cobb' &&
                       !!upper &&
                       upper === lower)
@@ -426,6 +467,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   activeTool: { backgroundColor: c.blue, borderColor: '#60A5FA' },
+  disabledTool: { opacity: 0.45 },
   toolName: { fontSize: 11, textAlign: 'center', color: c.text },
   pointCount: { color: c.muted, fontSize: 9 },
   badge: {

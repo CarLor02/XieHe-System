@@ -11,7 +11,10 @@ import {
   type FemoralHeadMode,
   type Point,
 } from '@xiehe/imaging-core/contracts';
-import type { AnnotationEditorSnapshot } from '@xiehe/imaging-core/editor';
+import type {
+  AnnotationEditorSnapshot,
+  KeypointSequenceSession,
+} from '@xiehe/imaging-core/editor';
 import { upsertKeypoint } from '@xiehe/imaging-core/keypoints';
 import {
   assembleInheritedMeasurementPoints,
@@ -36,7 +39,8 @@ import {
   createPelvicMeasurementMetadata,
   getPelvicToolPointCount,
 } from '@xiehe/imaging-core/measurements/lateral';
-import { synchronizeKeypoints } from './editorSnapshot';
+import { confirmKeypoints, synchronizeKeypoints } from './editorSnapshot';
+import { createKeypointDrawingSequence } from './keypointTools';
 import { measurementCalculator } from './measurementValues';
 
 export interface DrawingSession {
@@ -44,6 +48,7 @@ export interface DrawingSession {
   points: Point[];
   inherited: Map<number, Point>;
   pointsNeeded: number;
+  keypointSequence?: KeypointSequenceSession;
   pelvicMode?: FemoralHeadMode;
   avtTarget?: AvtTarget;
   cobbEndpoints?: {
@@ -64,6 +69,19 @@ export function startDrawing(
   examType: string,
   options: DrawingOptions = {}
 ): DrawingSession {
+  const keypointSequence = createKeypointDrawingSequence(
+    toolId,
+    examType,
+    snapshot.keypoints
+  );
+  if (keypointSequence)
+    return {
+      toolId,
+      points: [],
+      inherited: new Map(),
+      pointsNeeded: 1,
+      keypointSequence,
+    };
   const tool = getToolsForExamType(examType).find(t => t.id === toolId);
   if (toolId === 'avt' && !options.avtTarget)
     throw new Error('请先选择 AVT 的顶椎或椎间盘');
@@ -124,6 +142,10 @@ export function drawingHint(
   session: DrawingSession,
   snapshot: AnnotationEditorSnapshot
 ): string {
+  if (session.keypointSequence) {
+    const { keypointIds, currentIndex } = session.keypointSequence;
+    return `点选 ${keypointIds[currentIndex]} · ${currentIndex + 1}/${keypointIds.length}`;
+  }
   if (session.toolId === 'avt' && session.avtTarget) {
     const placement = createAvtPlacementSession(
       session.avtTarget,
@@ -166,6 +188,8 @@ export function placeDrawingPoint(
   snapshot: AnnotationEditorSnapshot;
   completion: Point[] | null;
 } {
+  if (session.keypointSequence)
+    return { session, snapshot, completion: [point] };
   if (session.toolId === 'avt' && session.avtTarget) {
     const placement = createAvtPlacementSession(
       session.avtTarget,
@@ -256,6 +280,25 @@ export function completeDrawing(
   context: CalculationContext,
   createId: () => string
 ): AnnotationEditorSnapshot {
+  if (session.keypointSequence) {
+    const { keypointIds, currentIndex } = session.keypointSequence;
+    const id = keypointIds[currentIndex];
+    createKeypointDrawingSequence(
+      `keypoint:${id}`,
+      context.examType ?? '',
+      snapshot.keypoints
+    );
+    return confirmKeypoints(
+      snapshot,
+      upsertKeypoint(snapshot.keypoints, {
+        id,
+        point: points[0],
+        source: AnnotationSource.MANUAL,
+        confidence: 1,
+      }),
+      context
+    );
+  }
   if (session.toolId === 'calibration')
     return { ...snapshot, standardDistancePoints: points };
   if (session.avtTarget) {

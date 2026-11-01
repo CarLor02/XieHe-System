@@ -971,3 +971,108 @@ describe('manual binding application', () => {
     expect(session.snapshot?.pointBindings.syncGroups).toEqual([]);
   });
 });
+
+describe('手动关键点绘制', () => {
+  it('按组补齐缺失点，逐点撤销并随标注文档保存和恢复', async () => {
+    const { session, gateway } = await setup();
+    draw(session, 'keypoint:T1-1', [points[0]]);
+    session.chooseTool('keypoint-group:T1');
+    expect(session.hint).toContain('T1-2');
+    expect(await session.save()).toBe(false);
+    session.placePoint(points[1], 1);
+    expect(session.snapshot?.keypoints.map(point => point.id)).toEqual([
+      'T1-1',
+      'T1-2',
+    ]);
+    expect(
+      session.snapshot?.measurements.some(item => item.type === 'T1 Tilt')
+    ).toBe(true);
+    expect(session.hint).toContain('T1-3');
+    session.placePoint(points[2], 1);
+    session.placePoint(points[3], 1);
+    expect(session.getState().drawing).toBeNull();
+    expect(session.getState().tool).toBe('keypoint');
+    expect(session.snapshot?.keypoints).toHaveLength(4);
+    session.undo();
+    expect(session.snapshot?.keypoints.map(point => point.id)).toEqual([
+      'T1-1',
+      'T1-2',
+      'T1-3',
+    ]);
+    session.redo();
+    expect(session.snapshot?.keypoints).toHaveLength(4);
+    expect(await session.save()).toBe(true);
+    const saved = gateway.save.mock.calls[0][0].annotation;
+    const restored = await setup(image(saved));
+    expect(restored.session.snapshot?.keypoints).toEqual(
+      session.snapshot?.keypoints
+    );
+    expect(saved.reportText).toBe('已有报告');
+  });
+
+  it('取消连续绘制保留已落点，取消后仍可编辑且可撤销该点', async () => {
+    const { session } = await setup();
+    session.chooseTool('keypoint-group:C7');
+    session.placePoint(points[0], 1);
+    session.cancelDrawing();
+    expect(session.getState().drawing).toBeNull();
+    expect(session.getState().tool).toBe('keypoint');
+    expect(session.snapshot?.keypoints.map(point => point.id)).toEqual([
+      'C7-1',
+    ]);
+    expect(session.getState().dirty).toBe(true);
+    session.undo();
+    expect(session.snapshot?.keypoints).toEqual([]);
+    expect(session.getState().dirty).toBe(false);
+  });
+
+  it('已有点、完整组和非当前检查类型的点不能重复或越界绘制', async () => {
+    const { session } = await setup();
+    draw(session, 'keypoint-group:T1', points.slice(0, 4));
+    const before = session.snapshot;
+    for (const tool of [
+      'keypoint:T1-1',
+      'keypoint-group:T1',
+      'keypoint:CFH',
+      'keypoint:unknown',
+    ]) {
+      session.chooseTool(tool);
+      expect(session.getState().drawing).toBeNull();
+      expect(session.getState().error).not.toBe('');
+      expect(session.snapshot).toEqual(before);
+    }
+    session.chooseTool('t1-tilt');
+    expect(session.getState().drawing).toBeNull();
+    expect(session.getState().message).toContain('该测量已存在');
+  });
+
+  it.each(['CFH', 'FH-1'])('侧位的 %s 与另一股骨头模式互斥', async id => {
+    const { session } = await setup(
+      image(document(), { description: '侧位X光片' })
+    );
+    draw(session, `keypoint:${id}`, [points[0]]);
+    session.chooseTool(id === 'CFH' ? 'keypoint-group:FH' : 'keypoint:CFH');
+    expect(session.getState().drawing).toBeNull();
+    expect(session.getState().error).toContain('另一种股骨头模式');
+    expect(session.snapshot?.keypoints.map(point => point.id)).toEqual([id]);
+  });
+
+  it('双股骨头和骶骨组连续补点，单点支持姿态点', async () => {
+    const { session } = await setup(
+      image(document(), { description: '侧位X光片' })
+    );
+    draw(session, 'keypoint-group:FH', points.slice(0, 2));
+    draw(session, 'keypoint-group:S1', points.slice(2, 4));
+    expect(session.snapshot?.keypoints.map(point => point.id)).toEqual(
+      expect.arrayContaining(['FH-1', 'FH-2', 'S1-1', 'S1-2'])
+    );
+    expect(
+      session.snapshot?.measurements.some(item => item.type === 'PI')
+    ).toBe(true);
+    const anterior = await setup();
+    draw(anterior.session, 'keypoint:IL', [points[0]]);
+    expect(anterior.session.snapshot?.keypoints[0].id).toBe('IL');
+    anterior.session.chooseTool('keypoint-group:pose');
+    expect(anterior.session.getState().drawing).toBeNull();
+  });
+});
