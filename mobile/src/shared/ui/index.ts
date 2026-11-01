@@ -13,6 +13,7 @@ export { GradientIcon } from './gradient-icon';
 export { Header } from './header';
 export { Icon } from './icon';
 export { IconButton } from './icon-button';
+export { useImageCropper } from './image-cropper';
 export { InfoRow } from './info-row';
 export { ListToolbar } from './list-toolbar';
 export { LoadingState } from './loading-state';

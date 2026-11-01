@@ -9,7 +9,7 @@
 | 认证 / 个人资料 | 登录、恢复/刷新/退出、读取/修改本人资料、改密码、头像预签名分片 PUT / complete / delete |
 | 患者 | patients list/get/create/update/delete；患者影像与报告分页；身份证号、医保号和紧急联系人 |
 | 影像 | list/get/patient-list、缩略图、原始文件 GET、原始文件删除；上传时使用 assignable-teams |
-| 上传 | 会话创建、原有签名 PUT、完成、状态确认；不以字节传完代替成功 |
+| 上传 | JPG/PNG 多选队列，逐张类型/团队与翻转裁剪；会话创建、原有签名 PUT、完成、状态确认；成功项不重传，失败项可重试 |
 | 标注 | annotation/save(expected_version)；绘图、点位拖动、手动绑定、标尺、撤销/重做 |
 | AI | 原有 ai/predict 原始 JSON 协议，shared core 归一化测量/检测层/关键点；进入待保存草稿 |
 | 报告 | report-generation/generate；reports list/get/create/update/delete；文字分享 |

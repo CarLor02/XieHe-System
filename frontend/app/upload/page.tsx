@@ -21,6 +21,7 @@ import { IMAGE_UPLOAD_FILE_CONCURRENCY } from '@/infrastructure/upload/config';
 import {
   advanceUploadOptions,
   enqueueUploadOptions,
+  isSupportedImageUploadFilename,
   markPendingUploadsStarted,
   removeFromUploadOptions,
   runWithConcurrency,
@@ -181,8 +182,15 @@ function UploadContent() {
   }, [loadAssignableTeams, user?.id]);
 
   const handleFiles = async (files: File[]) => {
+    const supported = files.filter(file =>
+      isSupportedImageUploadFilename(file.name)
+    );
+    if (supported.length !== files.length) {
+      alert('仅支持 JPG、PNG 文件，已跳过不支持的文件');
+    }
+    if (supported.length === 0) return;
     const defaultTeamIds = await resolveDefaultUploadTeamIds();
-    const newFiles: UploadFile[] = files.map((file, index) => {
+    const newFiles: UploadFile[] = supported.map((file, index) => {
       const previewUrl = URL.createObjectURL(file);
       const sourcePreviewUrl = URL.createObjectURL(file);
       return {
@@ -572,13 +580,13 @@ function UploadContent() {
                 拖拽文件到此处，或点击选择文件
               </h3>
               <p className="text-sm text-gray-500 mb-4">
-                支持 DCM, JPG, PNG, GIF 格式，单个文件最大 100MB
+                支持 JPG、PNG 格式，单个文件最大 100MB
               </p>
 
               <input
                 type="file"
                 multiple
-                accept=".dcm,.jpg,.jpeg,.png,.gif"
+                accept=".jpg,.jpeg,.png"
                 onChange={handleFileInput}
                 className="hidden"
                 id="file-upload"
@@ -762,7 +770,7 @@ function UploadContent() {
               •
               每个文件都可以单独选择影像类型，支持同一患者同批次上传正位和侧位影像
             </li>
-            <li>• 支持的文件格式：DCM（DICOM）、JPG、PNG、GIF</li>
+            <li>• 支持的文件格式：JPG、PNG</li>
             <li>• 单个文件大小不能超过 100MB</li>
             <li>• 支持拖拽上传</li>
             <li>

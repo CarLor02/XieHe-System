@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
+import { summarizeUploadQueue } from '@xiehe/upload-core';
 import {
   Button,
   Card,
@@ -8,16 +9,16 @@ import {
   Content,
   Header,
   Icon,
+  Notice,
   Screen,
   SectionTitle,
-  SelectionList,
 } from '@/shared/ui';
+import { useImageCropper } from '@/shared/ui/image-cropper';
 import { colors, layout } from '@/shared/theme';
 import { PatientPicker } from '@/features/patients/selection';
 import { useImageUpload } from '@/features/imaging/application/useImageUpload';
-import { formatFileSize } from '@/features/imaging/domain/presentation';
-import { TeamPicker } from './TeamPicker';
-import { examTypeOptions } from './imageSelectionOptions';
+import { UploadImageList } from './UploadImageList';
+import { UploadImageOptions } from './UploadImageOptions';
 
 export function ImageUploadScreen() {
   const params = useLocalSearchParams<{
@@ -33,135 +34,71 @@ export function ImageUploadScreen() {
           }
         : null
   );
-  const [examType, setExamType] = useState('');
-  const [teams, setTeams] = useState<{ id: number; name: string }[]>([]);
-  const [sheet, setSheet] = useState<'patient' | 'team' | null>(null);
-  const upload = useImageUpload();
+  const [patientOpen, setPatientOpen] = useState(false);
+  const cropper = useImageCropper();
+  const upload = useImageUpload(cropper);
+  const { session, entries, busy } = upload;
+  const activeEntry = entries.find(
+    entry => entry.id === upload.options.activeFileId
+  );
+  const summary = summarizeUploadQueue(entries);
   return (
     <Screen>
       <Header
         title="上传影像"
         subtitle="选择检查影像并完善归属信息"
-        back={!upload.busy}
+        back={!busy}
       />
       <Content>
-        <Card style={{ gap: 18 }}>
-          <View style={{ alignItems: 'center', gap: 12, paddingVertical: 22 }}>
-            <View
-              style={{
-                height: 70,
-                width: 70,
-                borderRadius: 23,
-                backgroundColor: colors.primaryLight,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Icon
-                name={
-                  upload.file
-                    ? 'document-attach-outline'
-                    : 'cloud-upload-outline'
-                }
-                size={34}
-              />
-            </View>
-            <Text style={layout.heading}>
-              {upload.file?.name || '添加检查影像'}
-            </Text>
-            <Text style={layout.muted}>
-              {upload.file
-                ? formatFileSize(upload.file.size)
-                : 'PNG / JPEG / TIFF · 最大 100 MB'}
-            </Text>
-          </View>
-          <View style={layout.row}>
-            <View style={{ flex: 1.2, minWidth: 0 }}>
-              <Button
-                title={upload.file ? '重新选择文件' : '从文件中选择'}
-                onPress={() => void upload.pick('file')}
-                disabled={upload.busy}
-              />
-            </View>
-            <View style={[layout.flex, { minWidth: 0 }]}>
-              <Button
-                title="相册"
-                variant="secondary"
-                onPress={() => void upload.pick('gallery')}
-                disabled={upload.busy}
-              />
-            </View>
-          </View>
-        </Card>
-        <Card style={{ gap: 14 }}>
-          <SectionTitle title="检查类型 *" />
-          <SelectionList
-            accessibilityLabel="检查类型"
-            options={examTypeOptions}
-            value={examType}
-            onChange={setExamType}
-            disabled={upload.busy}
-            style={{ gap: 14 }}
-          />
-        </Card>
         <Card style={{ gap: 16 }}>
-          <SectionTitle title="归属信息" />
+          <SectionTitle title="关联患者 *" />
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="关联患者"
-            disabled={upload.busy}
+            disabled={busy}
             style={layout.between}
-            onPress={() => setSheet('patient')}
+            onPress={() => setPatientOpen(true)}
           >
-            <View style={{ gap: 6 }}>
-              <Text style={layout.body}>关联患者</Text>
-              <Text style={layout.muted}>{patient?.name || '未关联患者'}</Text>
-            </View>
-            <Icon name="chevron-forward" color={colors.faint} size={18} />
-          </Pressable>
-          <View style={layout.divider} />
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="选择所属团队"
-            disabled={upload.busy}
-            style={layout.between}
-            onPress={() => setSheet('team')}
-          >
-            <View style={[layout.flex, { gap: 6 }]}>
-              <Text style={layout.body}>所属团队</Text>
-              <Text style={layout.muted}>
-                {teams.map(team => team.name).join('、') || '未分配团队'}
-              </Text>
-            </View>
+            <Text style={patient ? layout.body : layout.muted}>
+              {patient?.name || '请选择患者'}
+            </Text>
             <Icon name="chevron-forward" color={colors.faint} size={18} />
           </Pressable>
         </Card>
-        {upload.busy && (
-          <Card style={{ gap: 12 }}>
-            <Text style={layout.body}>
-              {upload.progress < 99
-                ? `正在上传 ${upload.progress}%`
-                : '文件已发送，正在等待服务端确认…'}
-            </Text>
-            <View
-              style={{
-                height: 7,
-                backgroundColor: colors.primaryLight,
-                borderRadius: 4,
-                overflow: 'hidden',
-              }}
-            >
-              <View
-                style={{
-                  height: '100%',
-                  width: `${upload.progress}%`,
-                  backgroundColor: colors.primary,
-                  borderRadius: 4,
-                }}
+        <Card style={{ gap: 16 }}>
+          <SectionTitle title="添加检查影像" />
+          <Text style={layout.muted}>
+            支持 JPG、PNG · 单张最大 100 MB · 可多选
+          </Text>
+          <View style={layout.row}>
+            <View style={layout.flex}>
+              <Button
+                title="从文件中选择"
+                onPress={() => void session.pick('file')}
+                disabled={busy}
               />
             </View>
-          </Card>
-        )}
+            <View style={layout.flex}>
+              <Button
+                title="相册"
+                variant="secondary"
+                onPress={() => void session.pick('gallery')}
+                disabled={busy}
+              />
+            </View>
+          </View>
+          {upload.activity === 'picking' && (
+            <Text style={layout.muted}>正在读取影像…</Text>
+          )}
+        </Card>
+        <UploadImageList
+          entries={entries}
+          busy={busy}
+          onEdit={session.openEditor}
+          onRemove={session.remove}
+          onClear={session.clear}
+          onRetry={id => void session.upload(patient?.id ?? null, id)}
+        />
         {!!upload.error && (
           <Text
             accessibilityRole="alert"
@@ -170,67 +107,59 @@ export function ImageUploadScreen() {
             {upload.error}
           </Text>
         )}
-        <Button
-          title="开始上传"
-          icon="cloud-upload-outline"
-          loading={upload.busy}
-          disabled={!upload.file}
-          onPress={() =>
-            void upload.upload(
-              patient?.id ?? null,
-              examType,
-              teams.map(team => team.id)
-            )
-          }
-        />
+        {entries.length > 0 && (
+          <Notice>
+            共 {summary.totalCount} 张，已完成 {summary.completedCount} 张
+            {summary.failedCount ? `，失败 ${summary.failedCount} 张` : ''}
+          </Notice>
+        )}
+        {summary.allCompleted ? (
+          <Button
+            title="完成，返回影像中心"
+            icon="checkmark-outline"
+            onPress={() => router.replace('/images')}
+          />
+        ) : (
+          <Button
+            title={
+              upload.activity === 'uploading'
+                ? `正在上传（${summary.completedCount}/${summary.totalCount}）`
+                : summary.failedCount
+                  ? '上传未完成的影像'
+                  : '开始上传'
+            }
+            icon="cloud-upload-outline"
+            loading={upload.activity === 'uploading'}
+            disabled={busy || !entries.length || !patient || !!activeEntry}
+            onPress={() => void session.upload(patient?.id ?? null)}
+          />
+        )}
       </Content>
       <ChoiceSheet
         title="关联患者"
-        open={sheet === 'patient'}
-        onClose={() => setSheet(null)}
+        open={patientOpen}
+        onClose={() => setPatientOpen(false)}
       >
-        {sheet === 'patient' && (
-          <>
-            <Button
-              title="取消关联"
-              variant="ghost"
-              compact
-              onPress={() => {
-                setPatient(null);
-                setSheet(null);
-              }}
-            />
-            <PatientPicker
-              selectedId={patient?.id}
-              onSelect={value => {
-                setPatient(value);
-                setSheet(null);
-              }}
-            />
-          </>
+        {patientOpen && (
+          <PatientPicker
+            selectedId={patient?.id}
+            onSelect={value => {
+              setPatient(value);
+              setPatientOpen(false);
+            }}
+          />
         )}
       </ChoiceSheet>
-      <ChoiceSheet
-        title="选择所属团队（可多选）"
-        open={sheet === 'team'}
-        onClose={() => setSheet(null)}
-      >
-        {sheet === 'team' && (
-          <>
-            <TeamPicker
-              selected={teams}
-              onToggle={team =>
-                setTeams(current =>
-                  current.some(item => item.id === team.id)
-                    ? current.filter(item => item.id !== team.id)
-                    : [...current, team]
-                )
-              }
-            />
-            <Button title="完成选择" onPress={() => setSheet(null)} />
-          </>
-        )}
-      </ChoiceSheet>
+      {activeEntry && (
+        <UploadImageOptions
+          entry={activeEntry}
+          remaining={upload.options.queuedFileIds.length}
+          busy={upload.activity === 'editing'}
+          error={upload.error}
+          session={session}
+        />
+      )}
+      {cropper.element}
     </Screen>
   );
 }
