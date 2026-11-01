@@ -20,7 +20,15 @@ import {
   getAvtTargetLabel,
 } from '@xiehe/imaging-core/measurements/ap';
 import { getKeypointGroupsForExamType } from '@xiehe/imaging-core/keypoints';
-import { getMeasurementDeriveVertebraOrder } from '@xiehe/imaging-core/anatomy';
+import {
+  BasicMode,
+  getEffectiveToolTab,
+  type ToolTab,
+} from '@xiehe/imaging-core/editor';
+import {
+  getEditorBasicModes,
+  getVertebraOptions,
+} from '@/features/image-editor/application/editorToolQueries';
 import {
   isAuxiliaryToolbarTool,
   hasUniqueAnnotationForTool,
@@ -34,6 +42,9 @@ import { EditorButton } from './EditorButton';
 import { ToolIcon } from './ToolIcon';
 import { EditorKeypointTools } from './EditorKeypointTools';
 import { EditorToolNavigation } from './EditorToolNavigation';
+import { EditorCornerCorrection } from './EditorCornerCorrection';
+import { EditorLabelOffset } from './EditorLabelOffset';
+import { EditorCobbDerivation } from './EditorCobbDerivation';
 import { editorColors as c, editorStyles as s } from './editorTheme';
 
 export function EditorToolSheet({
@@ -41,14 +52,18 @@ export function EditorToolSheet({
   state,
   open,
   onClose,
+  basicMode,
+  onBasicModeChange,
 }: {
   session: ImageEditorSession;
   state: EditorState;
   open: boolean;
   onClose: () => void;
+  basicMode: BasicMode;
+  onBasicModeChange: (mode: BasicMode) => void;
 }) {
   const [configured, setConfigured] = useState('');
-  const [tab, setTab] = useState<'measurement' | 'keypoint'>(
+  const [activeTab, setTab] = useState<ToolTab>(
     state.tool === 'keypoint' || state.drawing?.keypointSequence
       ? 'keypoint'
       : 'measurement'
@@ -66,15 +81,11 @@ export function EditorToolSheet({
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const tools = getToolsForExamType(session.context.examType);
+  const modes = getEditorBasicModes(session.context.examType);
+  const effectiveMode = modes.includes(basicMode) ? basicMode : BasicMode.Move;
+  const tab = getEffectiveToolTab(effectiveMode, activeTab);
   const keypointGroups = getKeypointGroupsForExamType(session.context.examType);
-  const vertebrae = keypointGroups
-    .map(group => group.name)
-    .filter(name => getMeasurementDeriveVertebraOrder(name) !== null)
-    .sort(
-      (left, right) =>
-        getMeasurementDeriveVertebraOrder(left)! -
-        getMeasurementDeriveVertebraOrder(right)!
-    );
+  const vertebrae = getVertebraOptions(session.context.examType);
   const activate = (tool: string) => {
     if (['avt', 'pi', 'pt', 'tpa', 'lateral-cobb'].includes(tool)) {
       setConfigured(tool);
@@ -233,21 +244,51 @@ export function EditorToolSheet({
               tab={tab}
               editable={session.editable}
               canUseKeypoints={!!keypointGroups.length}
-              onManualMode={() => {
+              modes={modes}
+              mode={effectiveMode}
+              onModeChange={next => {
                 setConfigured('');
-                session.chooseTool(tab === 'keypoint' ? 'keypoint' : 'hand');
+                session.chooseTool('hand');
+                onBasicModeChange(next);
               }}
               onTabChange={next => {
                 setTab(next);
                 setConfigured('');
               }}
             />
-            {tab === 'keypoint' && (
+            {effectiveMode === BasicMode.Move && tab === 'keypoint' && (
               <EditorKeypointTools session={session} onClose={onClose} />
             )}
-            {tab === 'measurement' && !configured && renderGroup(false)}
-            {tab === 'measurement' && !configured && renderGroup(true)}
-            {!!configured && (
+            {effectiveMode === BasicMode.Move &&
+              tab === 'measurement' &&
+              !configured &&
+              renderGroup(false)}
+            {effectiveMode === BasicMode.Move &&
+              tab === 'measurement' &&
+              !configured &&
+              renderGroup(true)}
+            {effectiveMode === BasicMode.VertebraCornerRectify &&
+              (tab === 'vertebra-inner-rectify' ? (
+                <EditorCornerCorrection
+                  session={session}
+                  error={state.error}
+                  onApplied={onClose}
+                />
+              ) : (
+                <EditorLabelOffset
+                  session={session}
+                  error={state.error}
+                  onApplied={onClose}
+                />
+              ))}
+            {effectiveMode === BasicMode.MeasurementDerive && (
+              <EditorCobbDerivation
+                session={session}
+                error={state.error}
+                onApplied={onClose}
+              />
+            )}
+            {effectiveMode === BasicMode.Move && !!configured && (
               <View style={styles.configuration}>
                 <EditorButton
                   label="返回工具列表"
@@ -418,7 +459,7 @@ export function EditorToolSheet({
                 当前：{session.snapshot?.standardDistance ?? '未设置'} mm
               </Text>
             </View>
-            {!!state.error && (
+            {!!state.error && effectiveMode === BasicMode.Move && (
               <Text style={{ color: c.danger, fontSize: 12 }}>
                 {state.error}
               </Text>

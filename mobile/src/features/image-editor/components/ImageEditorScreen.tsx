@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { router, useNavigation } from 'expo-router';
 import { usePreventRemove } from 'expo-router/react-navigation';
 import { StatusBar } from 'expo-status-bar';
+import { BasicMode } from '@xiehe/imaging-core/editor';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from '@/shared/ui';
@@ -29,6 +30,7 @@ export function ImageEditorScreen({
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const [toolsOpen, setToolsOpen] = useState(false);
+  const [toolMode, setToolMode] = useState(BasicMode.Move);
   const [measurementsOpen, setMeasurementsOpen] = useState(false);
   const [showLabels, setShowLabels] = useState(true);
   const [showKeypoints, setShowKeypoints] = useState(false);
@@ -332,6 +334,8 @@ export function ImageEditorScreen({
               session={session}
               state={state}
               open={toolsOpen}
+              basicMode={toolMode}
+              onBasicModeChange={setToolMode}
               onClose={() => setToolsOpen(false)}
             />
           )}

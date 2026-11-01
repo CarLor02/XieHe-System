@@ -1076,3 +1076,97 @@ describe('手动关键点绘制', () => {
     expect(anterior.session.getState().drawing).toBeNull();
   });
 });
+
+describe('纠正和派生模式的编辑事务', () => {
+  it('纠正与标签偏移各作为一步历史，可保存并恢复测量端椎', async () => {
+    const { session, gateway } = await setup();
+    draw(session, 'keypoint-group:T1', points.slice(0, 4));
+    draw(session, 'keypoint-group:T2', points.slice(4, 8));
+    expect(session.deriveCobb('T1', 'T2')).toBe(true);
+    await session.save();
+    const baseline = session.snapshot;
+    const historyLength = session.getState().history!.past.length;
+    expect(
+      session.rectifyVertebra('T1', [
+        { from: 1, to: 2 },
+        { from: 2, to: 1 },
+        { from: 3, to: 3 },
+        { from: 4, to: 4 },
+      ])
+    ).toBe(true);
+    expect(session.getState().history!.past.length).toBe(historyLength + 1);
+    expect(session.getState().dirty).toBe(true);
+    session.undo();
+    expect(session.snapshot).toEqual(baseline);
+    expect(session.getState().dirty).toBe(false);
+    session.redo();
+    expect(
+      session.snapshot?.keypoints.find(item => item.id === 'T1-1')?.point
+    ).toEqual(points[1]);
+    session.undo();
+    expect(
+      session.offsetVertebrae({
+        startVertebra: 'T1',
+        endVertebra: 'T2',
+        direction: 'down',
+        offset: 1,
+      })
+    ).toBe(true);
+    const shifted = session.snapshot;
+    expect(
+      shifted?.measurements.find(item => item.upperVertebra === 'T2')
+    ).toMatchObject({ lowerVertebra: 'T3' });
+    session.undo();
+    expect(session.snapshot).toEqual(baseline);
+    session.redo();
+    expect(session.snapshot).toEqual(shifted);
+    expect(await session.save()).toBe(true);
+    const saved = gateway.save.mock.calls.at(-1)![0].annotation;
+    const reopened = await setup(image(saved));
+    expect(reopened.session.snapshot?.keypoints).toEqual(shifted?.keypoints);
+    expect(
+      reopened.session.snapshot?.measurements.some(
+        item => item.upperVertebra === 'T2' && item.lowerVertebra === 'T3'
+      )
+    ).toBe(true);
+  });
+
+  it('Cobb 派生可独立撤销重做，无效操作保持历史和保存状态', async () => {
+    const { session } = await setup();
+    draw(session, 'keypoint-group:T1', points.slice(0, 4));
+    draw(session, 'keypoint-group:T3', points.slice(4, 8));
+    await session.save();
+    const baseline = session.snapshot;
+    expect(session.deriveCobb('T1', 'T3')).toBe(true);
+    const derived = session.snapshot;
+    session.undo();
+    expect(session.snapshot).toEqual(baseline);
+    expect(session.getState().dirty).toBe(false);
+    session.redo();
+    expect(session.snapshot).toEqual(derived);
+    const historyLength = session.getState().history!.past.length;
+    expect(session.deriveCobb('T1', 'T3')).toBe(false);
+    expect(session.getState().error).toContain('不可重复派生');
+    expect(session.snapshot).toEqual(derived);
+    expect(session.getState().history!.past.length).toBe(historyLength);
+    expect(
+      session.offsetVertebrae({
+        startVertebra: 'T1',
+        endVertebra: 'T3',
+        direction: 'down',
+        offset: 0,
+      })
+    ).toBe(false);
+    expect(session.snapshot).toEqual(derived);
+    session.chooseTool('cobb');
+    expect(
+      session.rectifyVertebra('T1', [
+        { from: 1, to: 2 },
+        { from: 2, to: 1 },
+        { from: 3, to: 3 },
+        { from: 4, to: 4 },
+      ])
+    ).toBe(false);
+    expect(session.snapshot).toEqual(derived);
+  });
+});

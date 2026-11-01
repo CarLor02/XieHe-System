@@ -29,7 +29,11 @@ import {
   type AnnotationEditorSnapshot,
   type AnnotationHistoryState,
 } from '@xiehe/imaging-core/editor';
-import { deleteKeypoints } from '@xiehe/imaging-core/keypoints';
+import {
+  deleteKeypoints,
+  type VertebraCornerOrderMapping,
+  type VertebraLabelOffsetOptions,
+} from '@xiehe/imaging-core/keypoints';
 import { planMeasurementDeletion } from '@xiehe/imaging-core/measurement-keypoint-sync';
 import {
   hasUniqueAnnotationForTool,
@@ -43,6 +47,11 @@ import {
 } from '@xiehe/imaging-core/measurements/ap';
 import type { PointRef } from '@xiehe/imaging-core/bindings';
 import { bindSelectedPoints } from './manualBindings';
+import {
+  correctVertebraCorners,
+  offsetVertebraLabels,
+} from './correctKeypoints';
+import { deriveCobbFromKeypoints } from './deriveCobb';
 import { dragAnnotation, type EditorSelection } from './dragAnnotation';
 import { recalculateSnapshot, synchronizeKeypoints } from './editorSnapshot';
 import { measurementCalculator } from './measurementValues';
@@ -538,6 +547,54 @@ export class ImageEditorSession {
     this.commit(
       recalculateSnapshot(next, { ...this.context, standardDistance: distance })
     );
+  }
+
+  rectifyVertebra(
+    vertebra: string,
+    mapping: VertebraCornerOrderMapping[]
+  ): boolean {
+    return this.applySnapshotEdit(
+      snapshot =>
+        correctVertebraCorners(snapshot, this.context, vertebra, mapping),
+      'keypoint'
+    );
+  }
+
+  offsetVertebrae(
+    options: Omit<VertebraLabelOffsetOptions, 'examType'>
+  ): boolean {
+    return this.applySnapshotEdit(
+      snapshot => offsetVertebraLabels(snapshot, this.context, options),
+      'keypoint'
+    );
+  }
+
+  deriveCobb(upper: string, lower: string): boolean {
+    return this.applySnapshotEdit(
+      snapshot => deriveCobbFromKeypoints(snapshot, this.context, upper, lower),
+      'hand'
+    );
+  }
+
+  private applySnapshotEdit(
+    edit: (snapshot: AnnotationEditorSnapshot) => AnnotationEditorSnapshot,
+    tool: 'hand' | 'keypoint'
+  ): boolean {
+    if (
+      !this.editable ||
+      !this.snapshot ||
+      this.state.drawing ||
+      this.state.dragging
+    )
+      return false;
+    try {
+      this.commit(edit(this.snapshot));
+      this.update({ tool, selection: null });
+      return true;
+    } catch (cause) {
+      this.update({ error: getApiErrorMessage(cause) });
+      return false;
+    }
   }
   deleteSelected() {
     if (

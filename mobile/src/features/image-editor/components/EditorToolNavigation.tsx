@@ -3,23 +3,29 @@ import {
   BASIC_MODE_LABELS,
   getToolTabCopy,
 } from '@xiehe/imaging-catalog/tools';
-import { BasicMode, DEFAULT_BASIC_MODES } from '@xiehe/imaging-core/editor';
+import {
+  getToolTabsForBasicMode,
+  type BasicMode,
+  type ToolTab,
+} from '@xiehe/imaging-core/editor';
 import { Icon } from '@/shared/ui';
 import { editorColors as c } from './editorTheme';
-
-type ToolTab = 'measurement' | 'keypoint';
 
 export function EditorToolNavigation({
   tab,
   editable,
   canUseKeypoints,
-  onManualMode,
+  modes,
+  mode,
+  onModeChange,
   onTabChange,
 }: {
   tab: ToolTab;
   editable: boolean;
   canUseKeypoints: boolean;
-  onManualMode: () => void;
+  modes: readonly BasicMode[];
+  mode: BasicMode;
+  onModeChange: (mode: BasicMode) => void;
   onTabChange: (tab: ToolTab) => void;
 }) {
   return (
@@ -27,18 +33,18 @@ export function EditorToolNavigation({
       <View style={styles.modes}>
         <Text style={styles.heading}>基础模式</Text>
         <View style={styles.modeRow}>
-          {DEFAULT_BASIC_MODES.map(mode => {
-            const selected = mode === BasicMode.Move;
-            const disabled = !selected || !editable;
+          {modes.map(item => {
+            const selected = item === mode;
+            const disabled = !editable;
             return (
               <Pressable
-                key={mode}
+                key={item}
                 accessibilityRole="button"
-                accessibilityLabel={BASIC_MODE_LABELS[mode]}
+                accessibilityLabel={BASIC_MODE_LABELS[item]}
                 accessibilityState={{ selected, disabled }}
                 aria-pressed={selected}
                 disabled={disabled}
-                onPress={onManualMode}
+                onPress={() => onModeChange(item)}
                 style={[
                   styles.mode,
                   selected && styles.activeMode,
@@ -50,7 +56,7 @@ export function EditorToolNavigation({
                   adjustsFontSizeToFit
                   style={styles.label}
                 >
-                  {BASIC_MODE_LABELS[mode]}
+                  {BASIC_MODE_LABELS[item]}
                 </Text>
                 {selected && (
                   <View style={styles.selectedBadge}>
@@ -63,7 +69,7 @@ export function EditorToolNavigation({
         </View>
       </View>
       <View style={styles.tabs} accessibilityRole="tablist">
-        {(['measurement', 'keypoint'] as const).map(id => {
+        {getToolTabsForBasicMode(mode).map(id => {
           const selected = tab === id;
           const disabled = id === 'keypoint' && !canUseKeypoints;
           return (
@@ -83,7 +89,11 @@ export function EditorToolNavigation({
             >
               <Icon
                 name={
-                  id === 'measurement' ? 'resize-outline' : 'locate-outline'
+                  id === 'measurement'
+                    ? 'resize-outline'
+                    : id === 'vertebra-label-offset'
+                      ? 'swap-vertical-outline'
+                      : 'locate-outline'
                 }
                 color={selected ? c.text : c.muted}
                 size={16}
