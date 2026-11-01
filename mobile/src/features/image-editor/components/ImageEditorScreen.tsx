@@ -34,7 +34,7 @@ export function ImageEditorScreen({
   const [analysisOpen, setAnalysisOpen] = useState(initialPanel === 'analysis');
   const [bindingsOpen, setBindingsOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
-  const [measurementsOpen, setMeasurementsOpen] = useState(true);
+  const [measurementsOpen, setMeasurementsOpen] = useState(false);
   const [showLabels, setShowLabels] = useState(true);
   const [showKeypoints, setShowKeypoints] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
@@ -199,11 +199,8 @@ export function ImageEditorScreen({
                   compact
                   label="测量数据面板"
                   icon="list-outline"
-                  active={measurementsOpen && !fullscreen}
-                  onPress={() => {
-                    setMeasurementsOpen(v => !v);
-                    setFullscreen(false);
-                  }}
+                  active={measurementsOpen}
+                  onPress={() => setMeasurementsOpen(true)}
                 />
                 <EditorButton
                   compact
@@ -297,18 +294,6 @@ export function ImageEditorScreen({
               )}
             </View>
           )}
-          {!fullscreen && measurementsOpen && (
-            <MeasurementPanel
-              readouts={readouts}
-              disabled={state.saving || !session.editable}
-              onSelect={id => {
-                session.cancelDrawing();
-                session.select({ kind: 'whole', measurementId: id });
-              }}
-              onDelete={() => setConfirmation('delete')}
-              onClose={() => setMeasurementsOpen(false)}
-            />
-          )}
           {!fullscreen && (
             <View style={styles.footer}>
               <EditorButton
@@ -353,6 +338,21 @@ export function ImageEditorScreen({
                 />
               </View>
             </View>
+          )}
+          {measurementsOpen && (
+            <MeasurementPanel
+              readouts={readouts}
+              disabled={state.saving || !session.editable}
+              onSelect={id => {
+                session.cancelDrawing();
+                session.select({ kind: 'whole', measurementId: id });
+              }}
+              onDelete={() => {
+                setMeasurementsOpen(false);
+                setConfirmation('delete');
+              }}
+              onClose={() => setMeasurementsOpen(false)}
+            />
           )}
           {bindingsOpen && (
             <BindingSheet

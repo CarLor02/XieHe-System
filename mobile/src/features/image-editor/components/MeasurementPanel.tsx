@@ -1,4 +1,13 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   getAnnotationDisplayName,
   getColorForType,
@@ -59,6 +68,8 @@ export function MeasurementPanel({
   onDelete: () => void;
   onClose: () => void;
 }) {
+  const { height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const state = useSyncExternalStore(
     readouts.subscribe,
     readouts.getState,
@@ -70,51 +81,89 @@ export function MeasurementPanel({
   const selectedId =
     selection && 'measurementId' in selection ? selection.measurementId : null;
   return (
-    <View style={s.panel}>
-      <View style={styles.heading}>
-        <View style={s.row}>
-          <Text style={s.title}>测量数据</Text>
-          <Text style={styles.count}>{measurements.length}</Text>
-        </View>
-        <View style={s.row}>
-          {selectedId && (
-            <EditorButton
-              compact
-              label="删除选中测量"
-              icon="trash-outline"
-              danger
-              onPress={onDelete}
-              disabled={interactionDisabled}
-            />
-          )}
-          <EditorButton
-            compact
-            label="收起测量数据"
-            icon="chevron-down"
-            onPress={onClose}
-          />
+    <Modal transparent visible animationType="slide" onRequestClose={onClose}>
+      <View style={styles.modal}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="关闭测量数据遮罩"
+          onPress={onClose}
+          style={StyleSheet.absoluteFill}
+        />
+        <View
+          accessibilityViewIsModal
+          style={[
+            styles.sheet,
+            {
+              maxHeight: height * 0.65,
+              paddingBottom: Math.max(insets.bottom, 12),
+            },
+          ]}
+        >
+          <View style={styles.handle} />
+          <View style={styles.heading}>
+            <View style={s.row}>
+              <Text accessibilityRole="header" style={s.title}>
+                测量数据
+              </Text>
+              <Text style={styles.count}>{measurements.length}</Text>
+            </View>
+            <View style={s.row}>
+              {selectedId && (
+                <EditorButton
+                  compact
+                  label="删除选中测量"
+                  icon="trash-outline"
+                  danger
+                  onPress={onDelete}
+                  disabled={interactionDisabled}
+                />
+              )}
+              <EditorButton
+                compact
+                label="关闭测量数据"
+                icon="close"
+                onPress={onClose}
+              />
+            </View>
+          </View>
+          <ScrollView style={styles.list} contentContainerStyle={styles.items}>
+            {!measurements.length && (
+              <Text style={styles.empty}>
+                暂无测量 · 从工具面板选择工具开始标注
+              </Text>
+            )}
+            {measurements.map(measurement => (
+              <MeasurementRow
+                key={measurement.id}
+                measurement={measurement}
+                selected={measurement.id === selectedId}
+                disabled={interactionDisabled}
+                onSelect={onSelect}
+              />
+            ))}
+          </ScrollView>
         </View>
       </View>
-      <ScrollView style={styles.list} contentContainerStyle={styles.items}>
-        {!measurements.length && (
-          <Text style={styles.empty}>
-            暂无测量 · 从工具面板选择工具开始标注
-          </Text>
-        )}
-        {measurements.map(measurement => (
-          <MeasurementRow
-            key={measurement.id}
-            measurement={measurement}
-            selected={measurement.id === selectedId}
-            disabled={interactionDisabled}
-            onSelect={onSelect}
-          />
-        ))}
-      </ScrollView>
-    </View>
+    </Modal>
   );
 }
 const styles = StyleSheet.create({
+  modal: { flex: 1, justifyContent: 'flex-end', backgroundColor: '#00000088' },
+  sheet: {
+    backgroundColor: c.panel,
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    borderWidth: 1,
+    borderColor: c.border,
+  },
+  handle: {
+    alignSelf: 'center',
+    backgroundColor: c.raised,
+    width: 36,
+    height: 4,
+    borderRadius: 4,
+    marginTop: 9,
+  },
   heading: {
     ...s.between,
     paddingLeft: 16,
@@ -131,7 +180,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     fontSize: 11,
   },
-  list: { maxHeight: 165 },
+  list: { flexGrow: 0, flexShrink: 1 },
   items: { padding: 10, gap: 6 },
   item: {
     minHeight: 52,
