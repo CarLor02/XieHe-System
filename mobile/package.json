@@ -64,7 +64,7 @@
     "build:android": "expo run:android --device",
     "build:ios": "expo run:ios --device",
     "web": "expo start --web",
-    "lint": "eslint src eslint.config.mjs",
+    "lint": "eslint src app.config.js eslint.config.mjs",
     "test": "vitest run --config vitest.config.mts",
     "type-check": "tsc --noEmit",
     "export": "expo export --platform all"

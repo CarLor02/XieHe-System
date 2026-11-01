@@ -1,53 +1,6 @@
 import { StyleSheet } from 'react-native';
-
-export const colors = {
-  primary: '#7C3AED',
-  primaryDark: '#5B21B6',
-  primaryLight: '#F3EDFF',
-  background: '#F8FAFC',
-  card: '#FFFFFF',
-  text: '#1E293B',
-  muted: '#64748B',
-  faint: '#94A3B8',
-  border: '#F1F5F9',
-  success: '#059669',
-  successLight: '#ECFDF5',
-  warning: '#D97706',
-  warningLight: '#FFFBEB',
-  danger: '#DC2626',
-  dangerLight: '#FEF2F2',
-  onPrimary: '#FFFFFF',
-  input: '#FAFBFD',
-  selectedBorder: '#D8C5FA',
-};
-
-// 公共控件共享尺寸和状态参数，业务页面仍可按布局需要组合或覆盖。
-export const spacing = { xxs: 4, xs: 8, sm: 12, md: 16, lg: 24, xl: 32 };
-export const radii = { small: 8, control: 14, card: 16, large: 24, pill: 999 };
-export const fontSizes = {
-  badge: 10,
-  caption: 12,
-  small: 13,
-  body: 14,
-  control: 15,
-  heading: 16,
-  title: 20,
-};
-export const sizes = {
-  header: 64,
-  control: 50,
-  compactControl: 42,
-  iconButton: 44,
-  filterChip: 48,
-  filterChipMinWidth: 136,
-  search: 44,
-  multilineInput: 100,
-  sheetMaxWidth: 600,
-};
-export const interactionOpacity = { disabled: 0.5, pressed: 0.75 };
-export const shadows = {
-  filterChip: '0 2px 3px rgba(148,163,184,0.08)',
-};
+import { colors } from './colors';
+import { spacing, radii, fontSizes, sizes, interactionOpacity } from './tokens';
 
 export const layout = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },

@@ -185,11 +185,22 @@ Web 单独使用原生 `input[type=date]`，避免 Expo 日期组件在 Web 返�
 平台适配按本地日历日期转换，不通过 UTC 时间戳截取日期。患者出生日期上限由患者表单
 传入今天，后端请求中的 `null`、日期合法性和未来日期校验仍由原有表单规则负责。
 
-公共组件的颜色、间距、圆角、字号、控件尺寸和按压/禁用透明度统一来自
-`src/shared/theme.ts`；`Field` 与 `DateField` 共用字段样式。业务专属布局和影像画布
-样式仍留在所属模块。
+公共主题通过 `@/shared/theme` 导入，入口 `src/shared/theme/index.ts` 只负责导出：
 
-四个 Tab 共用 `Header` 的紫色背景和默认 64dp 标题行，顶部安全区单独计算，
+- `brand.json` 是品牌色的唯一数据源，主色为 `#123208`；`palette.ts` 汇总原始配色，均不依赖 React Native。
+- `colors.ts` 按主色、文字、背景、状态和选中态定义语义颜色；分类标签配色独立于品牌色。
+- `tokens.ts` 管理间距、圆角、字号、控件尺寸和按压/禁用透明度。
+- `effects.ts` 管理公共渐变与阴影；页面和公共组件不自行拼接品牌色值或阴影。
+- `styles.ts` 组合现有 `layout`、`fieldStyles`；`Field` 与 `DateField` 共用字段样式，组件内部布局仍留在组件内。
+
+当前为静态浅色主题，不提供运行时换肤。Expo UI 适配继续显式传递主色、前景色和背景色。
+影像画布的深色样式保留在所属模块，测量类型颜色继续由共享标注包定义，不随品牌主题改变。
+
+`app.config.js` 读取同一份 `brand.json`，为 `app.json` 的启动屏插件补充背景色。
+修改启动屏配色后需重新执行 `npx expo prebuild --platform android --no-install` 并构建 APK；
+仅重新打包 JavaScript 不会更新已生成的 Android 启动屏资源。
+
+四个 Tab 共用 `Header` 的品牌渐变背景和默认 64dp 标题行，顶部安全区单独计算，
 不在 Header 内嵌搜索、筛选或问候内容，也不使用底部圆角。标题行使用最小高度，
 大字体和长标题可以自然增高；二级页面仍可显示副标题和返回按钮。
 患者中心与影像中心通过公共 `ListToolbar` 在 Header 下方放置搜索和筛选，

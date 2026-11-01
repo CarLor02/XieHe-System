@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 import { Card, Icon, Tag } from '@/shared/ui';
-import { colors, layout } from '@/shared/theme';
+import { colors, layout, gradients, shadows } from '@/shared/theme';
 import {
   formatDate,
   imageStatusLabel,
@@ -62,7 +62,11 @@ export function ImageCard({
             />
           ) : (
             <>
-              <Icon name="scan-outline" color="#C4B5FD" size={25} />
+              <Icon
+                name="scan-outline"
+                color={colors.onInverseBrand}
+                size={25}
+              />
               <Text style={styles.fileType}>{image.file_type}</Text>
             </>
           )}
@@ -101,16 +105,24 @@ export function ImageCard({
             style={layout.flex}
           >
             <LinearGradient
-              colors={['#8B5CF6', '#9333EA']}
+              colors={gradients.brand}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.analyze}
             >
               <View style={styles.sparkles}>
-                <Icon name="sparkles-outline" color="#FFF" size={13} />
+                <Icon
+                  name="sparkles-outline"
+                  color={colors.onPrimary}
+                  size={13}
+                />
               </View>
               <Text style={styles.analyzeLabel}>影像分析</Text>
-              <Icon name="arrow-forward" color="#FFFFFFB3" size={13} />
+              <Icon
+                name="arrow-forward"
+                color={colors.onPrimarySubtle}
+                size={13}
+              />
             </LinearGradient>
           </Pressable>
           {onOpenOriginal && (
@@ -136,7 +148,7 @@ export function ImageCard({
               onPress={onDelete}
               style={[styles.actionButton, styles.delete]}
             >
-              <Icon name="trash-outline" color="#F87171" size={18} />
+              <Icon name="trash-outline" color={colors.dangerSoft} size={18} />
             </Pressable>
           )}
         </View>
@@ -156,13 +168,13 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 12,
-    backgroundColor: '#0F172A',
+    backgroundColor: colors.inverseSurface,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
     gap: 3,
   },
-  fileType: { fontSize: 8, color: '#CBD5E1' },
+  fileType: { fontSize: 8, color: colors.onInverseMuted },
   name: { fontSize: 14, fontWeight: '700', color: colors.text },
   date: { fontSize: 11, color: colors.faint, flexShrink: 1 },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -174,17 +186,17 @@ const styles = StyleSheet.create({
     minHeight: 44,
     paddingHorizontal: 10,
     borderRadius: 16,
-    boxShadow: '0 3px 6px rgba(139,92,246,0.2)',
+    boxShadow: shadows.brandAction,
   },
   sparkles: {
     width: 20,
     height: 20,
     borderRadius: 7,
-    backgroundColor: '#FFFFFF33',
+    backgroundColor: colors.onPrimarySurface,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  analyzeLabel: { color: '#FFF', fontSize: 13, fontWeight: '600' },
+  analyzeLabel: { color: colors.onPrimary, fontSize: 13, fontWeight: '600' },
   actionButton: {
     width: 44,
     height: 44,
@@ -195,5 +207,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  delete: { backgroundColor: '#FEF2F2', borderColor: '#FEF2F2' },
+  delete: {
+    backgroundColor: colors.dangerLight,
+    borderColor: colors.dangerLight,
+  },
 });

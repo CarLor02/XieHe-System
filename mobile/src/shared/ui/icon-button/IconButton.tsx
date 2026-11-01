@@ -23,7 +23,7 @@ export function IconButton({
       disabled={disabled}
       onPress={onPress}
       size="icon"
-      backgroundColor={light ? '#FFFFFF25' : colors.primaryLight}
+      backgroundColor={light ? colors.onPrimaryControl : colors.primaryLight}
       foregroundColor={light ? colors.onPrimary : colors.primary}
     >
       <View

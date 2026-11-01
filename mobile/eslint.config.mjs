@@ -19,18 +19,18 @@ export default defineConfig([
     },
   },
   {
-    files: ['src/shared/ui/**/index.{ts,tsx}'],
+    files: ['src/shared/ui/**/index.{ts,tsx}', 'src/shared/theme/index.ts'],
     rules: {
       'no-restricted-syntax': [
         'error',
         {
           selector:
             'Program > :not(ExportNamedDeclaration):not(ExportAllDeclaration)',
-          message: '公共 UI 的 index.ts 只负责导出，实现请放在组件文件中。',
+          message: '公共 UI 和主题的 index.ts 只负责导出，实现请放在各自文件中。',
         },
         {
           selector: 'ExportNamedDeclaration[declaration!=null]',
-          message: '请从组件文件重新导出，不要在 index.ts 中定义组件或类型。',
+          message: '请从实现文件重新导出，不要在 index.ts 中定义组件、常量或类型。',
         },
       ],
     },

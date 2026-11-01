@@ -2,14 +2,14 @@ import { Tabs } from 'expo-router';
 import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon, type IconName } from '@/shared/ui';
-import { colors } from '@/shared/theme';
+import { colors, gradients } from '@/shared/theme';
 import { GradientIcon } from '@/shared/ui/gradient-icon';
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   const icon = (name: IconName, focused: boolean) =>
     focused ? (
-      <GradientIcon name={name} colors={['#8B5CF6', '#A855F7']} iconSize={20} />
+      <GradientIcon name={name} colors={gradients.brand} iconSize={20} />
     ) : (
       <View
         style={{

@@ -3,7 +3,14 @@ import { router } from 'expo-router';
 import type { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, fontSizes, layout, sizes, spacing } from '@/shared/theme';
+import {
+  colors,
+  fontSizes,
+  layout,
+  sizes,
+  spacing,
+  gradients,
+} from '@/shared/theme';
 import { IconButton } from '@/shared/ui/icon-button';
 
 export function Header({
@@ -20,7 +27,7 @@ export function Header({
   const insets = useSafeAreaInsets();
   return (
     <LinearGradient
-      colors={['#7C3AED', '#A855F7', '#7C3AED']}
+      colors={gradients.header}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 0 }}
       style={[styles.header, { paddingTop: insets.top }]}
@@ -63,7 +70,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   headerSubtitle: {
-    color: '#E9DDFF',
+    color: colors.onPrimaryMuted,
     fontSize: fontSizes.caption,
     marginTop: spacing.xxs,
     lineHeight: 18,

@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { ComponentProps } from 'react';
-import { radii } from '@/shared/theme';
+import { radii, shadows, colors as themeColors } from '@/shared/theme';
 
 export function GradientIcon({
   name,
@@ -27,10 +27,10 @@ export function GradientIcon({
         borderRadius: radius,
         alignItems: 'center',
         justifyContent: 'center',
-        boxShadow: `0 3px 6px ${colors[0]}33`,
+        boxShadow: shadows.icon,
       }}
     >
-      <Ionicons name={name} size={iconSize} color="#FFF" />
+      <Ionicons name={name} size={iconSize} color={themeColors.onPrimary} />
     </LinearGradient>
   );
 }

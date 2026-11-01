@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Tag } from '@/shared/ui';
 import { GradientIcon } from '@/shared/ui/gradient-icon';
-import { colors, layout } from '@/shared/theme';
+import { colors, layout, gradients, accents } from '@/shared/theme';
 
 export function PendingTaskList({ images }: { images: ImageFile[] }) {
   return (
@@ -42,7 +42,7 @@ export function PendingTaskList({ images }: { images: ImageFile[] }) {
           >
             <GradientIcon
               name="arrow-forward"
-              colors={['#8B5CF6', '#9333EA']}
+              colors={gradients.brand}
               size={36}
               iconSize={18}
               radius={12}
@@ -62,8 +62,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
   },
-  divider: { borderTopWidth: 1, borderTopColor: '#F8FAFC' },
-  dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#FB923C' },
+  divider: { borderTopWidth: 1, borderTopColor: colors.divider },
+  dot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: accents.orange.marker,
+  },
   name: { fontSize: 13, fontWeight: '600', color: colors.text, flexShrink: 1 },
   meta: { fontSize: 10, color: colors.faint },
   action: {

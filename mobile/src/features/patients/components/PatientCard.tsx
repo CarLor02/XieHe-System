@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Card, Icon, Tag } from '@/shared/ui';
 import { GradientIcon } from '@/shared/ui/gradient-icon';
-import { colors, layout } from '@/shared/theme';
+import { colors, layout, gradients } from '@/shared/theme';
 
 export function PatientCard({ patient }: { patient: Patient }) {
   const display = getPatientSearchDisplay(patient);
@@ -60,7 +60,7 @@ export function PatientCard({ patient }: { patient: Patient }) {
         >
           <GradientIcon
             name="eye-outline"
-            colors={['#8B5CF6', '#A855F7']}
+            colors={gradients.brand}
             size={32}
             iconSize={16}
             radius={8}
@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
   information: { flex: 1, minWidth: 0, gap: 3, paddingVertical: 2 },
   name: { fontSize: 14, fontWeight: '700', color: colors.text, flexShrink: 1 },
   age: { fontSize: 12, fontWeight: '500', color: colors.muted },
-  dot: { color: '#CBD5E1', fontSize: 12 },
+  dot: { color: colors.subtle, fontSize: 12 },
   phone: { fontSize: 12, color: colors.muted, flexShrink: 1 },
   actions: { flexDirection: 'row', gap: 0 },
   actionTarget: {

@@ -23,7 +23,7 @@ export function DashboardSection({
           paddingHorizontal: 16,
           paddingVertical: 14,
           borderBottomWidth: 1,
-          borderBottomColor: '#F8FAFC',
+          borderBottomColor: colors.divider,
         }}
       >
         <View

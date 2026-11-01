@@ -146,8 +146,8 @@ function renderButton(
     size: 'compact',
     disabled: false,
     onPress,
-    backgroundColor: '#F3EDFF',
-    foregroundColor: '#7C3AED',
+    backgroundColor: colors.primaryLight,
+    foregroundColor: colors.primary,
     children: createElement(webOnlyLabel),
     ...overrides,
   };
@@ -227,14 +227,14 @@ describe.each([
         const { props } = renderButton(Surface, {
           size: 'icon',
           icon,
-          backgroundColor: '#FFFFFF25',
-          foregroundColor: '#FFFFFF',
+          backgroundColor: colors.onPrimaryControl,
+          foregroundColor: colors.onPrimary,
         });
         // Expo UI Android 的 Circle 原生默认半径为 0，会将背景和字形一起裁掉。
         expect(props.shape).toMatchObject({ type: 'circle', radius: 1 });
         expect(props.colors).toMatchObject({
-          containerColor: '#FFFFFF25',
-          contentColor: '#FFFFFF',
+          containerColor: colors.onPrimaryControl,
+          contentColor: colors.onPrimary,
         });
       }
     );

@@ -2,18 +2,26 @@ import type { DashboardActivity } from '@xiehe/api-contracts';
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Icon, type IconName } from '@/shared/ui';
-import { colors, layout } from '@/shared/theme';
+import { colors, layout, accents } from '@/shared/theme';
 
 const appearance: Record<
   string,
   { icon: IconName; foreground: string; background: string }
 > = {
-  patient: { icon: 'person-add', foreground: '#F97316', background: '#FFF7ED' },
-  study: { icon: 'cloud-upload', foreground: '#8B5CF6', background: '#F5F3FF' },
+  patient: {
+    icon: 'person-add',
+    foreground: accents.orange.foreground,
+    background: accents.orange.background,
+  },
+  study: {
+    icon: 'cloud-upload',
+    foreground: colors.primary,
+    background: colors.primaryLight,
+  },
   report: {
     icon: 'document-text',
-    foreground: '#0EA5E9',
-    background: '#F0F9FF',
+    foreground: accents.sky.foreground,
+    background: accents.sky.background,
   },
 };
 
@@ -70,7 +78,7 @@ export function ActivityList({
               )}
             </View>
             <Text style={styles.time}>{time}</Text>
-            <Icon name="chevron-forward" color="#CBD5E1" size={14} />
+            <Icon name="chevron-forward" color={colors.subtle} size={14} />
           </Pressable>
         );
       })}
@@ -86,7 +94,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
   },
-  divider: { borderTopWidth: 1, borderTopColor: '#F8FAFC' },
+  divider: { borderTopWidth: 1, borderTopColor: colors.divider },
   icon: {
     width: 36,
     height: 36,

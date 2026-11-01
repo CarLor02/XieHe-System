@@ -14,7 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '@/application/AppProvider';
 import { Button, Card, Field, Icon, Notice } from '@/shared/ui';
-import { colors, layout } from '@/shared/theme';
+import { colors, layout, gradients, shadows } from '@/shared/theme';
 
 export function LoginScreen() {
   const app = useApp();
@@ -36,10 +36,7 @@ export function LoginScreen() {
   };
 
   return (
-    <LinearGradient
-      colors={['#F3EEFF', '#FAF8FF', '#F5F2FF']}
-      style={layout.flex}
-    >
+    <LinearGradient colors={gradients.background} style={layout.flex}>
       <StatusBar style="dark" />
       <View style={styles.orb} />
       <View style={[styles.orb, styles.bottomOrb]} />
@@ -55,8 +52,8 @@ export function LoginScreen() {
           ]}
         >
           <View style={styles.brand}>
-            <LinearGradient colors={['#9B5AF5', '#6D28D9']} style={styles.logo}>
-              <Icon name="medical" color="#FFF" size={42} />
+            <LinearGradient colors={gradients.brand} style={styles.logo}>
+              <Icon name="medical" color={colors.onPrimary} size={42} />
             </LinearGradient>
             <Text style={styles.brandTitle}>协和脊柱影像</Text>
             <Text style={layout.muted}>让影像与诊疗，随时相连</Text>
@@ -180,7 +177,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 24,
     marginBottom: 8,
-    boxShadow: '0 10px 26px rgba(124,58,237,0.22)',
+    boxShadow: shadows.brandLogo,
   },
   brandTitle: {
     fontSize: 27,
@@ -192,8 +189,8 @@ const styles = StyleSheet.create({
   form: {
     padding: 24,
     gap: 22,
-    borderColor: '#FFF',
-    backgroundColor: '#FFFFFFED',
+    borderColor: colors.card,
+    backgroundColor: colors.translucentCard,
     borderRadius: 26,
   },
   passwordToggle: {
@@ -212,7 +209,7 @@ const styles = StyleSheet.create({
   },
   serverText: { color: colors.muted, fontSize: 11 },
   footer: {
-    color: '#A9A0BB',
+    color: colors.faint,
     fontSize: 10,
     letterSpacing: 2,
     textAlign: 'center',
@@ -221,7 +218,7 @@ const styles = StyleSheet.create({
     width: 280,
     height: 280,
     borderRadius: 140,
-    backgroundColor: '#E9DCFC55',
+    backgroundColor: colors.brandDecoration,
     position: 'absolute',
     top: -80,
     left: -120,
@@ -231,7 +228,7 @@ const styles = StyleSheet.create({
     left: undefined,
     bottom: -120,
     right: -100,
-    backgroundColor: '#E9D5FF60',
+    backgroundColor: colors.brandDecorationStrong,
     width: 340,
     height: 340,
     borderRadius: 170,

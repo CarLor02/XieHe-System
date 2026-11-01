@@ -19,7 +19,7 @@ import {
   type IconName,
 } from '@/shared/ui';
 import { GradientIcon } from '@/shared/ui/gradient-icon';
-import { colors, layout } from '@/shared/theme';
+import { colors, layout, gradients, shadows, accents } from '@/shared/theme';
 import { useDashboard } from '@/features/dashboard/application/useDashboard';
 import { ActivityList } from './ActivityList';
 import { DashboardGreeting } from './DashboardGreeting';
@@ -30,25 +30,25 @@ const quickActions = [
   {
     label: '新增患者',
     icon: 'person-add-outline',
-    colors: ['#8B5CF6', '#A855F7'],
+    colors: gradients.brand,
     route: '/patients/new',
   },
   {
     label: '上传影像',
     icon: 'push-outline',
-    colors: ['#38BDF8', '#3B82F6'],
+    colors: gradients.sky,
     route: '/images/upload',
   },
   {
     label: '影像中心',
     icon: 'scan-outline',
-    colors: ['#34D399', '#14B8A6'],
+    colors: gradients.teal,
     route: '/images',
   },
   {
     label: '消息通知',
     icon: 'notifications-outline',
-    colors: ['#FB923C', '#F43F5E'],
+    colors: gradients.orange,
     route: '/messages',
   },
 ] as const;
@@ -60,21 +60,21 @@ export function DashboardScreen() {
     label: string;
     value?: number;
     icon: IconName;
-    gradient: [string, string];
+    gradient: readonly [string, string];
     route: '/patients' | '/images';
   }[] = [
     {
       label: '总患者数',
       value: summary?.total_patients,
       icon: 'people-outline',
-      gradient: ['#8B5CF6', '#9333EA'],
+      gradient: gradients.brand,
       route: '/patients',
     },
     {
       label: '总影像数',
       value: summary?.total_images,
       icon: 'scan-outline',
-      gradient: ['#38BDF8', '#3B82F6'],
+      gradient: gradients.sky,
       route: '/images',
     },
   ];
@@ -131,14 +131,22 @@ export function DashboardScreen() {
                     style={styles.stat}
                   >
                     <View style={styles.statIcon}>
-                      <Icon name={item.icon} color="#FFF" size={20} />
+                      <Icon
+                        name={item.icon}
+                        color={colors.onPrimary}
+                        size={20}
+                      />
                     </View>
                     <Text style={styles.statValue}>
                       {item.value?.toLocaleString() ?? '—'}
                     </Text>
                     <View style={layout.between}>
                       <Text style={styles.statLabel}>{item.label}</Text>
-                      <Icon name="arrow-forward" color="#FFFFFFB0" size={12} />
+                      <Icon
+                        name="arrow-forward"
+                        color={colors.onPrimarySubtle}
+                        size={12}
+                      />
                     </View>
                   </LinearGradient>
                 </Pressable>
@@ -207,7 +215,7 @@ export function DashboardScreen() {
             </Pressable>
           </View>
         </DashboardSection>
-        <DashboardSection title="近期动态" accent="#38BDF8">
+        <DashboardSection title="近期动态" accent={accents.sky.marker}>
           {activities.loading && !activities.data && <LoadingState />}
           {!!activities.error && (
             <ErrorState
@@ -227,30 +235,34 @@ export function DashboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  sectionTitle: { fontSize: 14, fontWeight: '700', color: '#334155' },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.textSecondary,
+  },
   stats: { flexDirection: 'row', gap: 12, paddingBottom: 4 },
   statLink: { flex: 1, minWidth: 0 },
   stat: {
     padding: 16,
     borderRadius: 16,
-    boxShadow: '0 4px 8px rgba(139,92,246,0.14)',
+    boxShadow: shadows.brandCard,
   },
   statIcon: {
     height: 36,
     width: 36,
     borderRadius: 12,
-    backgroundColor: '#FFFFFF33',
+    backgroundColor: colors.onPrimarySurface,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
   },
   statValue: {
-    color: '#FFF',
+    color: colors.onPrimary,
     fontSize: 26,
     fontWeight: '700',
     marginBottom: 3,
   },
-  statLabel: { fontSize: 11, color: '#FFFFFFCC' },
+  statLabel: { fontSize: 11, color: colors.onPrimaryMuted },
   quickActions: { flexDirection: 'row', gap: 8 },
   quick: { flex: 1, alignItems: 'center', gap: 8 },
   quickLabel: { fontSize: 11, color: colors.muted, fontWeight: '500' },
@@ -258,12 +270,16 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
     color: colors.warning,
-    backgroundColor: '#FFF7ED',
+    backgroundColor: accents.orange.background,
     borderRadius: 999,
     paddingHorizontal: 8,
     paddingVertical: 3,
   },
-  taskFooter: { padding: 12, borderTopWidth: 1, borderTopColor: '#F8FAFC' },
+  taskFooter: {
+    padding: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.divider,
+  },
   viewAll: {
     minHeight: 38,
     flexDirection: 'row',
@@ -271,7 +287,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     borderWidth: 1,
-    borderColor: '#DDD6FE',
+    borderColor: colors.selectedBorder,
     borderRadius: 12,
   },
   viewAllLabel: { fontSize: 12, fontWeight: '600', color: colors.primary },

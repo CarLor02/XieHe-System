@@ -1,5 +1,12 @@
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
-import { colors, fontSizes, radii, sizes, spacing } from '@/shared/theme';
+import {
+  colors,
+  fontSizes,
+  radii,
+  sizes,
+  spacing,
+  shadows,
+} from '@/shared/theme';
 import { Icon } from '@/shared/ui/icon';
 
 export function SearchField({
@@ -42,13 +49,13 @@ export function SearchField({
 const styles = StyleSheet.create({
   search: {
     minHeight: sizes.search,
-    backgroundColor: '#FFFFFFF2',
+    backgroundColor: colors.searchSurface,
     borderRadius: radii.control,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing.sm,
     gap: spacing.xs,
-    boxShadow: '0 4px 12px rgba(76,29,149,0.12)',
+    boxShadow: shadows.search,
   },
   searchInput: {
     flex: 1,

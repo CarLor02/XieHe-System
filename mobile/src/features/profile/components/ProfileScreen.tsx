@@ -24,12 +24,12 @@ import {
   type IconName,
 } from '@/shared/ui';
 import { GradientIcon } from '@/shared/ui/gradient-icon';
-import { colors, layout } from '@/shared/theme';
+import { colors, layout, gradients, shadows } from '@/shared/theme';
 
 const menu: {
   title: string;
   icon: IconName;
-  colors: [string, string];
+  colors: readonly [string, string];
   route:
     | '/profile/info'
     | '/profile/teams'
@@ -39,25 +39,25 @@ const menu: {
   {
     title: '个人信息',
     icon: 'person-outline',
-    colors: ['#A78BFA', '#8B5CF6'],
+    colors: gradients.brand,
     route: '/profile/info',
   },
   {
     title: '组织管理',
     icon: 'business-outline',
-    colors: ['#C084FC', '#A855F7'],
+    colors: gradients.brand,
     route: '/profile/teams',
   },
   {
     title: '修改密码',
     icon: 'lock-closed-outline',
-    colors: ['#FBBF24', '#F59E0B'],
+    colors: gradients.amber,
     route: '/profile/password',
   },
   {
     title: '系统设置',
     icon: 'settings-outline',
-    colors: ['#34D399', '#10B981'],
+    colors: gradients.emerald,
     route: '/profile/settings',
   },
 ];
@@ -121,7 +121,7 @@ export function ProfileScreen() {
             ) : (
               <GradientIcon
                 name="person-outline"
-                colors={['#A78BFA', '#A855F7']}
+                colors={gradients.brand}
                 size={64}
                 iconSize={30}
                 radius={16}
@@ -183,7 +183,7 @@ export function ProfileScreen() {
             >
               <GradientIcon name={item.icon} colors={item.colors} />
               <Text style={styles.menuTitle}>{item.title}</Text>
-              <Icon name="chevron-forward" color="#CBD5E1" size={18} />
+              <Icon name="chevron-forward" color={colors.subtle} size={18} />
             </Pressable>
           ))}
         </Card>
@@ -196,7 +196,7 @@ export function ProfileScreen() {
             { opacity: pressed ? 0.7 : 1 },
           ]}
         >
-          <Icon name="log-out-outline" color="#EF4444" size={18} />
+          <Icon name="log-out-outline" color={colors.dangerAccent} size={18} />
           <Text style={styles.logoutText}>退出登录</Text>
         </Pressable>
       </Content>
@@ -268,19 +268,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 16,
   },
-  menuDivider: { borderTopWidth: 1, borderTopColor: '#F8FAFC' },
-  menuTitle: { flex: 1, fontSize: 14, fontWeight: '500', color: '#334155' },
+  menuDivider: { borderTopWidth: 1, borderTopColor: colors.divider },
+  menuTitle: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.textSecondary,
+  },
   logout: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
     padding: 16,
-    backgroundColor: '#FFF',
+    backgroundColor: colors.card,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.border,
-    boxShadow: '0 4px 16px rgba(148,163,184,0.10)',
+    boxShadow: shadows.card,
   },
-  logoutText: { fontSize: 14, fontWeight: '600', color: '#EF4444' },
+  logoutText: { fontSize: 14, fontWeight: '600', color: colors.dangerAccent },
 });
