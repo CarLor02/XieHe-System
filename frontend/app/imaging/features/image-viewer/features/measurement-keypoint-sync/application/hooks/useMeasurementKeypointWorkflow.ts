@@ -60,7 +60,10 @@ import {
   getMeasurementKeypointBindingRuleForMeasurement,
   writeMeasurementToKeypoints,
 } from '@xiehe/imaging-core/measurement-keypoint-sync';
-import { syncCobbMeasurementToKeypoints } from '@xiehe/imaging-core/measurement-keypoint-sync';
+import {
+  syncAvailableLateralCobbEndpointsToKeypoints,
+  syncCobbMeasurementToKeypoints,
+} from '@xiehe/imaging-core/measurement-keypoint-sync';
 import { runLateralDetectionCache } from '@/app/imaging/features/image-viewer/features/ai-measurement/usecases/aiMeasurementWorkflowUseCase';
 import {
   hydratePersistedKeypointState,
@@ -778,19 +781,50 @@ export function useMeasurementKeypointWorkflow({
             measurement => measurement.id === measurementId
           )
         : null;
+      const changedPointIndices =
+        typeof pointIndex === 'number' ? [pointIndex] : [...pointIndex];
+      const measurementPoints =
+        updatedPoints ??
+        sourceMeasurement?.points.map((point, index) =>
+          changedPointIndices.includes(index) ? newPoint : point
+        );
+
+      // Cobb 的端椎是动态绑定，固定工具规则表无法处理；必须先写回再重算，
+      // 并以本次拖动的测量快照为基线，保留待定端椎尚未绑定的控制点。
+      if (
+        isKeypointExam &&
+        sourceMeasurement &&
+        measurementPoints &&
+        isCobbMeasurement(sourceMeasurement)
+      ) {
+        const updated = { ...sourceMeasurement, points: measurementPoints };
+        const completed = syncCobbMeasurementToKeypoints(
+          keypoints,
+          updated,
+          examType
+        );
+        const nextKeypoints =
+          completed ??
+          (isLateralView
+            ? syncAvailableLateralCobbEndpointsToKeypoints(keypoints, updated)
+            : keypoints);
+        if (areKeypointsEqual(keypoints, nextKeypoints)) return false;
+
+        const baseMeasurements = (updatedMeasurements ?? measurements).map(
+          item =>
+            item.id === updated.id
+              ? { ...updated, ...(completed ? { keypointSynced: true } : {}) }
+              : item
+        );
+        applyMovedKeypoints(nextKeypoints, baseMeasurements);
+        return true;
+      }
       const dynamicVertebraLabel = sourceMeasurement?.apexVertebra ?? undefined;
       const bindingRule = sourceMeasurement
         ? getMeasurementKeypointBindingRuleForMeasurement(sourceMeasurement)
         : getMeasurementKeypointBindingRule(measurementType);
 
-      if (bindingRule && sourceMeasurement) {
-        const changedPointIndices =
-          typeof pointIndex === 'number' ? [pointIndex] : [...pointIndex];
-        const measurementPoints =
-          updatedPoints ??
-          sourceMeasurement.points.map((point, index) =>
-            changedPointIndices.includes(index) ? newPoint : point
-          );
+      if (bindingRule && sourceMeasurement && measurementPoints) {
         const nextKeypoints = changedPointIndices.reduce(
           (current, changedPointIndex) =>
             writeMeasurementToKeypoints(
@@ -808,8 +842,6 @@ export function useMeasurementKeypointWorkflow({
         return false;
       }
 
-      const changedPointIndices =
-        typeof pointIndex === 'number' ? [pointIndex] : [...pointIndex];
       const fallbackResult = changedPointIndices.reduce(
         (current, changedPointIndex) =>
           applyMeasurementPointToVertebrae(
@@ -844,6 +876,7 @@ export function useMeasurementKeypointWorkflow({
       cfhAnnotation,
       examType,
       isKeypointExam,
+      isLateralView,
       keypoints,
       measurements,
       setCfhAnnotation,
