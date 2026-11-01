@@ -3,8 +3,10 @@ import { Circle, G, Line } from 'react-native-svg';
 import type { SharedValue } from 'react-native-reanimated';
 import {
   imageToScreen,
+  getBilateralPelvicGeometryOwnerId,
   type TransformContext,
 } from '@xiehe/imaging-core/canvas';
+import type { CalculationContext } from '@xiehe/imaging-core/measurements';
 import type { AnnotationEditorSnapshot } from '@xiehe/imaging-core/editor';
 import type { MeasurementData, Point } from '@xiehe/imaging-core/contracts';
 import type { EditorSelection } from '@/features/image-editor/application/dragAnnotation';
@@ -23,6 +25,8 @@ import { AnnotationLabels } from './AnnotationLabels';
 
 interface LayerProps {
   layer: AnnotationLayer;
+  pelvicOwnerId: string | null;
+  calculationContext: CalculationContext;
   context: TransformContext;
   viewport: SharedValue<Viewport>;
   selection: EditorSelection | null;
@@ -34,6 +38,8 @@ interface LayerProps {
 const GeometryLayer = memo(
   function GeometryLayer({
     layer,
+    pelvicOwnerId,
+    calculationContext,
     context,
     viewport,
     selection,
@@ -60,6 +66,10 @@ const GeometryLayer = memo(
             key={measurement.id}
             measurement={measurement}
             context={context}
+            drawingContext={{
+              calculationContext,
+              renderPelvicSharedGeometry: measurement.id === pelvicOwnerId,
+            }}
             selected={
               !!selection &&
               'measurementId' in selection &&
@@ -130,6 +140,11 @@ const GeometryLayer = memo(
   (a, b) =>
     sameLayer(a.layer, b.layer) &&
     a.context === b.context &&
+    a.pelvicOwnerId === b.pelvicOwnerId &&
+    a.calculationContext.standardDistance ===
+      b.calculationContext.standardDistance &&
+    a.calculationContext.standardDistancePoints ===
+      b.calculationContext.standardDistancePoints &&
     a.viewport === b.viewport &&
     a.selection === b.selection &&
     a.showKeypoints === b.showKeypoints &&
@@ -163,11 +178,22 @@ export function AnnotationOverlay({
   dragPreview: SharedValue<DragPreview>;
   readouts: EditorReadoutStore;
 }) {
+  const pelvicOwnerId = getBilateralPelvicGeometryOwnerId(
+    snapshot.measurements,
+    () => false
+  );
+  const calculationContext: CalculationContext = {
+    standardDistance: snapshot.standardDistance,
+    standardDistancePoints: snapshot.standardDistancePoints,
+    imageNaturalSize: context.imageNaturalSize,
+  };
   const layers = partitionAnnotations(snapshot, baseline, selection);
   return (
     <>
       <GeometryLayer
         layer={layers.static}
+        pelvicOwnerId={pelvicOwnerId}
+        calculationContext={calculationContext}
         context={context}
         selection={selection}
         viewport={viewport}
@@ -175,6 +201,8 @@ export function AnnotationOverlay({
       />
       <GeometryLayer
         layer={layers.dynamic}
+        pelvicOwnerId={pelvicOwnerId}
+        calculationContext={calculationContext}
         context={context}
         selection={selection}
         viewport={viewport}

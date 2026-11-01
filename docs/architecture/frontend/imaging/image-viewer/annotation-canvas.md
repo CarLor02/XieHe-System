@@ -1,6 +1,6 @@
 # 影像标注画布职责
 
-Canvas 由公共规则、公共派生状态和 Web 交互/展示实现组成。
+Canvas 由公共规则、公共派生状态、公共绘制几何和各平台交互/展示实现组成。
 
 ## 目录结构
 
@@ -14,6 +14,7 @@ packages/xiehe-imaging-core/src/canvas/
 │   ├── selection/   # measurement 选择边界
 │   └── tools/       # 工具切换、点约束和参考线规则
 └── application/
+    ├── drawing/measurement-drawing/ # 平台无关的辅助线、箭头、弧线与图元
     └── selectors/   # 平台无关画布派生状态
 
 frontend/.../features/annotation-canvas/
@@ -49,7 +50,21 @@ Presentation 负责 DOM 相对坐标、活动 pointerId、Pointer Capture、多�
 
 文字标签命中依赖字体估算和 Web catalog，完整 measurement 命中还要组合 Web
 renderer 配置，因此留在 Web application。Web catalog 只声明 `rendererId`，
-presentation registry 将其映射到 JSX。Core 不返回 JSX，也不解释 SVG 或 DOM。
+presentation registry 将其映射到 JSX。Core 不返回 JSX，也不访问 DOM；SVG 属性由平台适配。
+
+`buildMeasurementDrawing`、`buildAvtDrawing` 接收影像点位、布局解析结果和投影函数，
+返回直线、圆、弧、箭头多边形等纯数据图元。辅助线长度使用影像坐标；箭头和弧线半径
+使用屏幕坐标。Web 的 `renderDrawingPrimitives` 和 Expo 的 `DrawingPrimitives`
+分别映射到 DOM SVG 和 `react-native-svg`，避免两端各自维护长度和位置规则。
+AVT 使用 metadata 区分椎体/椎间盘、C7PL/CSVL，历史两点/六点记录保持原有布局。
+
+Expo 的动态 SVG 边界同样从图元计算，包含弧线和箭头，防止拖动时被局部位图裁剪。
+测量文字仍由低频读数层渲染；静态/动态几何分层和 UI 线程控制点预览保持独立。
+
+完成测量绘制或显式补点后，应用层先写回关键点，再调用
+`deriveMissingFixedMeasurementsFromKeypoints` 补齐可确定的固定测量。例如 TTS 的
+骶骨参考点满足 CSS 时自动创建 CSS，PI 完成后补齐 PT、SS。拖动仅重算已有项，
+不重新创建已删除的测量；新建测量、关联关键点和自动派生项纳入同一次撤销事务。
 
 可变 measurement 必须先经 Core resolver 解析。`invalid` 记录保留在列表中，但
 renderer、hit-test 和 drag 跳过，Canvas 不按 `points.length` 猜测历史布局。
@@ -60,4 +75,4 @@ renderer、hit-test 和 drag 跳过，Canvas 不按 `points.length` 猜测历史
 - Web application 不依赖 presentation。
 - Pointer Capture、DOM 尺寸和浏览器事件只存在于 Web presentation。
 - Measurement/Core 不反向依赖 Canvas renderer。
-- Expo 复用 Core 输入策略、selector 和几何，自行实现 Gesture/Skia 适配。
+- Expo 复用 Core 输入策略、selector 和绘制几何，自行实现 Gesture、Reanimated 和原生 SVG 适配。

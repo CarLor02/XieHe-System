@@ -1,5 +1,6 @@
 import {
   imageToScreen,
+  drawingBoundsPoints,
   type TransformContext,
 } from '@xiehe/imaging-core/canvas';
 import type { MeasurementData, Point } from '@xiehe/imaging-core/contracts';
@@ -101,29 +102,22 @@ export function geometryBounds(
   showKeypoints: boolean,
   preview: MeasurementData | null
 ): DrawingBounds | null {
-  const points: Point[] = [...layer.calibration];
-  if (showKeypoints) points.push(...layer.keypoints.map(item => item.point));
+  const project = (point: Point) => imageToScreen(point, context);
+  const points: Point[] = layer.calibration.map(project);
+  if (showKeypoints)
+    points.push(...layer.keypoints.map(item => project(item.point)));
   for (const measurement of [
     ...layer.measurements,
     ...(preview ? [preview] : []),
   ]) {
-    points.push(...measurement.points);
-    const geometry = measurementGeometry(
-      measurement,
-      context.imageNaturalSize?.height ?? 0
+    points.push(...measurement.points.map(project));
+    points.push(
+      ...drawingBoundsPoints(
+        measurementGeometry(measurement, context, {
+          renderPelvicSharedGeometry: true,
+        })
+      )
     );
-    geometry.lines.forEach(line => points.push(line.start, line.end));
-    geometry.polygons.forEach(polygon => points.push(...polygon));
-    geometry.circles.forEach(circle => {
-      const r = Math.hypot(
-        circle.radiusHandle.x - circle.center.x,
-        circle.radiusHandle.y - circle.center.y
-      );
-      points.push(
-        { x: circle.center.x - r, y: circle.center.y - r },
-        { x: circle.center.x + r, y: circle.center.y + r }
-      );
-    });
   }
   if (!points.length || !context.containerSize) return null;
   let minX = Infinity,
@@ -131,13 +125,11 @@ export function geometryBounds(
     maxX = -Infinity,
     maxY = -Infinity;
   for (const point of points) {
-    const projected = imageToScreen(point, context);
-    if (!Number.isFinite(projected.x) || !Number.isFinite(projected.y))
-      continue;
-    minX = Math.min(minX, projected.x);
-    minY = Math.min(minY, projected.y);
-    maxX = Math.max(maxX, projected.x);
-    maxY = Math.max(maxY, projected.y);
+    if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) continue;
+    minX = Math.min(minX, point.x);
+    minY = Math.min(minY, point.y);
+    maxX = Math.max(maxX, point.x);
+    maxY = Math.max(maxY, point.y);
   }
   // 按小网格扩展边界，避免每移动一个像素都改变原生视图布局。
   const tile = 64;

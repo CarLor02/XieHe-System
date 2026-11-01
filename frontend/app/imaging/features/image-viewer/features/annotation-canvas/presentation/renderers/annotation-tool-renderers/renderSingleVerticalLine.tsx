@@ -1,63 +1,24 @@
-import type { JSX } from 'react';
 import type { Point } from '@xiehe/imaging-core/contracts';
-import type { SpecialElementRenderContext } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/types';
-import {
-  getSpecialRenderImagePoints,
-  projectSpecialRenderPoint,
-  projectSpecialRenderPoints,
-  RENDER_IMAGE_LENGTHS,
-} from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/annotation-tool-renderers/annotationToolRendererUtils';
+import { buildMeasurementDrawing } from '@xiehe/imaging-core/canvas';
+import type { SpecialElementRenderContext } from '../types';
+import { renderDrawingPrimitives } from '../renderDrawingPrimitives';
 
-/**
- * 垂直线段渲染器：优先渲染2点线段（兼容旧数据时1点退化为短线）
- */
 export function renderSingleVerticalLine(
   screenPoints: Point[],
   displayColor: string,
-  _imageScale: number,
+  _imageScale?: number,
   context?: SpecialElementRenderContext
-): JSX.Element | null {
-  if (screenPoints.length < 1) return null;
-
-  const imagePoints = getSpecialRenderImagePoints(screenPoints, context);
-  const projectedPoints = projectSpecialRenderPoints(imagePoints, context);
-
-  if (imagePoints.length >= 2) {
-    return (
-      <line
-        x1={projectedPoints[0].x}
-        y1={projectedPoints[0].y}
-        x2={projectedPoints[1].x}
-        y2={projectedPoints[1].y}
-        stroke={displayColor}
-        strokeWidth="2"
-        strokeDasharray="5,5"
-        opacity="0.8"
-      />
-    );
-  }
-
-  const point = imagePoints[0];
-  const lineLength = RENDER_IMAGE_LENGTHS.fallbackGuideLength;
-  const start = projectSpecialRenderPoint(
-    { x: point.x, y: point.y - lineLength / 2 },
-    context
+) {
+  const drawing = buildMeasurementDrawing(
+    'single-vertical-line',
+    context?.imagePoints ?? screenPoints,
+    {
+      project: context?.imageToScreen,
+      calculationContext: context?.calculationContext,
+      resolvedMeasurement: context?.resolvedMeasurement,
+      renderPelvicSharedGeometry: context?.renderPelvicSharedGeometry,
+      effectiveCfhInteractionState: context?.effectiveCfhInteractionState,
+    }
   );
-  const end = projectSpecialRenderPoint(
-    { x: point.x, y: point.y + lineLength / 2 },
-    context
-  );
-
-  return (
-    <line
-      x1={start.x}
-      y1={start.y}
-      x2={end.x}
-      y2={end.y}
-      stroke={displayColor}
-      strokeWidth="2"
-      strokeDasharray="5,5"
-      opacity="0.8"
-    />
-  );
+  return drawing.length ? renderDrawingPrimitives(drawing, displayColor) : null;
 }

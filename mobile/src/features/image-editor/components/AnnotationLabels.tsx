@@ -3,16 +3,21 @@ import { Text as SvgText } from 'react-native-svg';
 import type { SharedValue } from 'react-native-reanimated';
 import {
   imageToScreen,
+  getBilateralPelvicGeometryOwnerId,
   type TransformContext,
 } from '@xiehe/imaging-core/canvas';
 import {
   getAnnotationDisplayName,
+  getAnnotationTypeId,
   getColorForType,
   getLabelPositionForType,
 } from '@xiehe/imaging-catalog/annotations';
 import type { EditorReadoutStore } from '@/features/image-editor/application/EditorReadoutStore';
 import type { EditorSelection } from '@/features/image-editor/application/dragAnnotation';
 import type { Viewport } from './interaction/canvasGestureModel';
+import { getAvtLabelPosition } from '@xiehe/imaging-core/measurements/ap';
+import { measurementGeometry } from './measurementGeometry';
+import { DrawingPrimitives } from './DrawingPrimitives';
 import { SvgLayer } from './SvgLayer';
 
 /** 标签订阅低频读数；高频几何更新不进入文字绘制层。 */
@@ -36,6 +41,10 @@ export const AnnotationLabels = memo(function AnnotationLabels({
   );
   const snapshot = state.history?.present;
   if (!snapshot) return null;
+  const pelvicOwnerId = getBilateralPelvicGeometryOwnerId(
+    snapshot.measurements,
+    () => false
+  );
   return (
     <SvgLayer context={context} viewport={viewport}>
       {snapshot.measurements.map(measurement => {
@@ -46,11 +55,13 @@ export const AnnotationLabels = memo(function AnnotationLabels({
           selection.measurementId === measurement.id;
         const color = selected ? '#FBBF24' : getColorForType(measurement.type);
         const point = imageToScreen(
-          getLabelPositionForType(
-            measurement.type,
-            measurement.points,
-            context.imageScale
-          ),
+          getAnnotationTypeId(measurement.type) === 'avt'
+            ? getAvtLabelPosition(measurement)
+            : getLabelPositionForType(
+                measurement.type,
+                measurement.points,
+                context.imageScale
+              ),
           context
         );
         const label = `${getAnnotationDisplayName(measurement.type)}${measurement.value ? `  ${measurement.value}` : ''}`;
@@ -68,6 +79,27 @@ export const AnnotationLabels = memo(function AnnotationLabels({
           </SvgText>
         );
       })}
+      {snapshot.measurements
+        .filter(
+          measurement =>
+            getAnnotationTypeId(measurement.type) ===
+              'hemipelvic-width-ratio' || measurement.id === pelvicOwnerId
+        )
+        .map(measurement => (
+          <DrawingPrimitives
+            key={`details:${measurement.id}`}
+            textOnly
+            color={getColorForType(measurement.type)}
+            primitives={measurementGeometry(measurement, context, {
+              renderPelvicSharedGeometry: measurement.id === pelvicOwnerId,
+              calculationContext: {
+                standardDistance: snapshot.standardDistance,
+                standardDistancePoints: snapshot.standardDistancePoints,
+                imageNaturalSize: context.imageNaturalSize,
+              },
+            })}
+          />
+        ))}
       {showKeypoints &&
         snapshot.keypoints.map(keypoint => {
           if (

@@ -1,146 +1,116 @@
 import type { MeasurementData, Point } from '@xiehe/imaging-core/contracts';
+import {
+  getAnnotationConfig,
+  getAnnotationTypeId,
+} from '@xiehe/imaging-catalog/annotations';
 import { getVertebraCenterGeometry } from '@xiehe/imaging-core/geometry';
-import { getAnnotationTypeId } from '@xiehe/imaging-core/measurements';
+import { resolvePelvicMeasurement } from '@xiehe/imaging-core/measurements/lateral';
 import {
-  getAvtGeometry,
-  getHemipelvicVerticalLines,
-  resolveTtsMeasurement,
-} from '@xiehe/imaging-core/measurements/ap';
-import {
-  getPelvicMeasurementGeometry,
-  getTpaGeometry,
-  resolvePelvicMeasurement,
-} from '@xiehe/imaging-core/measurements/lateral';
+  buildMeasurementDrawing,
+  buildAvtDrawing,
+  imageToScreen,
+  type DrawingPrimitive,
+  type TransformContext,
+  type DrawingContext,
+} from '@xiehe/imaging-core/canvas';
 
-export interface MeasurementGeometry {
-  lines: { start: Point; end: Point; dashed?: boolean }[];
-  polygons: Point[][];
-  circles: { center: Point; radiusHandle: Point }[];
-}
-
-/** 仅把共享领域几何适配为原生 SVG 图元；不在渲染时改写点位或计算测量值。 */
+/** 医学工具使用共享绘制规则，平台只适配坐标和原生图元。 */
 export function measurementGeometry(
   measurement: MeasurementData,
-  imageHeight: number
-): MeasurementGeometry {
-  const result: MeasurementGeometry = { lines: [], polygons: [], circles: [] };
-  const p = measurement.points;
+  context: TransformContext,
+  options: Omit<DrawingContext, 'project' | 'resolvedMeasurement'> = {}
+): DrawingPrimitive[] {
+  const project = (point: Point) => imageToScreen(point, context);
+  const drawingContext: DrawingContext = {
+    ...options,
+    project,
+    resolvedMeasurement: resolvePelvicMeasurement(measurement) ?? undefined,
+  };
   const type = getAnnotationTypeId(measurement.type);
-  if (type === 'rectangle' || type === 'ellipse') return result;
-  const line = (
-    start: Point | undefined,
-    end: Point | undefined,
-    dashed = false
-  ) => {
-    if (start && end) result.lines.push({ start, end, dashed });
-  };
-  const vertical = (point: Point) =>
-    line({ x: point.x, y: 0 }, { x: point.x, y: imageHeight }, true);
-  const box = (points: Point[]) => {
-    if (points.length < 4) return null;
-    const geometry = getVertebraCenterGeometry([
-      points[0],
-      points[1],
-      points[2],
-      points[3],
-    ]);
-    result.polygons.push([...geometry.perimeter]);
-    line(...geometry.topBottomMidline, true);
-    line(...geometry.leftRightMidline, true);
-    return geometry.center;
-  };
-  if (type === 'circle' && p.length === 2)
-    result.circles.push({ center: p[0], radiusHandle: p[1] });
-  else if (type === 'polygon') result.polygons.push(p);
-  else if (type === 'vertebra-center') box(p);
-  else if (type === 'avt') {
-    const geometry = getAvtGeometry(measurement);
-    if (geometry) {
-      if (geometry.targetPoints.length === 4) box(geometry.targetPoints);
-      else line(geometry.targetPoints[0], geometry.targetPoints[1]);
-      if (geometry.referencePoints.length === 4) box(geometry.referencePoints);
-      else line(geometry.referencePoints[0], geometry.referencePoints[1]);
-      vertical(geometry.referenceCenter);
-      line(geometry.targetCenter, {
-        x: geometry.referenceCenter.x,
-        y: geometry.targetCenter.y,
-      });
-    }
-  } else if (type === 'ts' || type === 'sva') {
-    const center = p.length >= 4 ? box(p) : p[0];
-    const reference =
-      type === 'ts' && p.length >= 6
-        ? { x: (p[4].x + p[5].x) / 2, y: (p[4].y + p[5].y) / 2 }
-        : type === 'sva'
-          ? p[4]
-          : p[1];
-    if (type === 'ts' && p.length >= 6) line(p[4], p[5]);
-    if (center && reference) {
-      vertical(center);
-      vertical(reference);
-      line(center, { x: reference.x, y: center.y });
-    }
-  } else if (type === 'tts') {
-    const geometry = resolveTtsMeasurement(measurement);
-    if (geometry) {
-      line(...geometry.trunkPoints);
-      line(...geometry.sacralPoints);
-      vertical(geometry.trunkCenter);
-      vertical(geometry.sacralCenter);
-      const y = (geometry.trunkCenter.y + geometry.sacralCenter.y) / 2;
-      line({ x: geometry.trunkCenter.x, y }, { x: geometry.sacralCenter.x, y });
-    }
-  } else if (type === 'hemipelvic-width-ratio') {
-    getHemipelvicVerticalLines(p).forEach(l => line(l.top, l.bottom));
-  } else if (['pi', 'pt', 'tpa'].includes(type)) {
-    const resolved = resolvePelvicMeasurement(measurement);
-    const tpa = type === 'tpa' ? getTpaGeometry(p) : null;
-    const geometry = resolved?.geometry ?? getPelvicMeasurementGeometry(p);
-    if (geometry) {
-      result.circles.push(...geometry.femoralHeadCircles);
-      line(geometry.sacralLeft, geometry.sacralRight);
-      if (geometry.femoralHeadCenter) {
-        line(geometry.femoralHeadCenter, geometry.sacralMidpoint);
-        if (type === 'pt') vertical(geometry.femoralHeadCenter);
-        if (type === 'pi') {
-          const span = imageHeight * 0.1;
-          line(
-            {
-              x: geometry.sacralMidpoint.x - geometry.sacralNormal.x * span,
-              y: geometry.sacralMidpoint.y - geometry.sacralNormal.y * span,
-            },
-            {
-              x: geometry.sacralMidpoint.x + geometry.sacralNormal.x * span,
-              y: geometry.sacralMidpoint.y + geometry.sacralNormal.y * span,
-            },
-            true
-          );
-        }
-        if (tpa) {
-          box(p);
-          line(tpa.femoralHeadCenter, tpa.t1Center);
-        }
-      }
-    }
-  } else if (type === 'lld') {
-    p.slice(0, 2).forEach(point =>
-      line(
-        { x: point.x - 100, y: point.y },
-        { x: point.x + 100, y: point.y },
-        true
-      )
+  if (type === 'avt') return buildAvtDrawing(measurement, drawingContext);
+  const renderer = getAnnotationConfig(measurement.type)?.rendererId;
+  if (renderer)
+    return buildMeasurementDrawing(
+      renderer,
+      measurement.points,
+      drawingContext
     );
-  } else if (p.length === 4) {
-    line(p[0], p[1]);
-    line(p[2], p[3]);
-  } else if (p.length === 3) {
-    line(p[0], p[1]);
-    line(p[1], p[2]);
-  } else line(p[0], p[1]);
-  if (
-    ['t1-tilt', 't1-slope', 'ca', 'po', 'css', 'ss'].includes(type) &&
-    p.length >= 2
-  )
-    line({ x: p[0].x - 100, y: p[0].y }, { x: p[0].x + 100, y: p[0].y }, true);
+  const p = measurement.points.map(project);
+  if (!p.length) return [];
+  if (type === 'polygon') return [{ kind: 'polygon', points: p }];
+  if (type === 'vertebra-center' && p.length === 4) {
+    const geometry = getVertebraCenterGeometry([p[0], p[1], p[2], p[3]]);
+    return [
+      { kind: 'polygon', points: [...geometry.perimeter], dash: '5,5' },
+      ...[geometry.topBottomMidline, geometry.leftRightMidline].map(
+        ([start, end]): DrawingPrimitive => ({
+          kind: 'line',
+          start,
+          end,
+          dash: '5,5',
+        })
+      ),
+      {
+        kind: 'circle',
+        center: geometry.center,
+        radius: 3,
+        fill: 'currentColor',
+      },
+    ];
+  }
+  if (p.length < 2) return [];
+  if (type === 'circle')
+    return [
+      {
+        kind: 'circle',
+        center: p[0],
+        radius: Math.hypot(p[1].x - p[0].x, p[1].y - p[0].y),
+      },
+    ];
+  // 椭圆第一个点是圆心，第二个点定义半轴，不能按矩形对角点解释。
+  if (type === 'ellipse')
+    return [
+      {
+        kind: 'ellipse',
+        center: p[0],
+        rx: Math.abs(p[1].x - p[0].x),
+        ry: Math.abs(p[1].y - p[0].y),
+      },
+    ];
+  if (type === 'rectangle')
+    return [
+      {
+        kind: 'polygon',
+        points: [
+          p[0],
+          { x: p[1].x, y: p[0].y },
+          p[1],
+          { x: p[0].x, y: p[1].y },
+        ],
+      },
+    ];
+  const result: DrawingPrimitive[] = [{ kind: 'line', start: p[0], end: p[1] }];
+  if (type === 'arrow') {
+    const angle = Math.atan2(p[1].y - p[0].y, p[1].x - p[0].x);
+    result.push({
+      kind: 'polygon',
+      fill: 'currentColor',
+      stroke: 'none',
+      points: [
+        p[1],
+        {
+          x: p[1].x - 10 * Math.cos(angle - 0.45),
+          y: p[1].y - 10 * Math.sin(angle - 0.45),
+        },
+        {
+          x: p[1].x - 10 * Math.cos(angle + 0.45),
+          y: p[1].y - 10 * Math.sin(angle + 0.45),
+        },
+      ],
+    });
+  } else if (p.length === 3)
+    result.push({ kind: 'line', start: p[1], end: p[2] });
+  else if (p.length === 4)
+    result.push({ kind: 'line', start: p[2], end: p[3] });
   return result;
 }

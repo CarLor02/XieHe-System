@@ -1,57 +1,24 @@
-import type { JSX } from 'react';
 import type { Point } from '@xiehe/imaging-core/contracts';
-import type { SpecialElementRenderContext } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/types';
-import {
-  getSpecialRenderImagePoints,
-  projectSpecialRenderPoint,
-  projectSpecialRenderPoints,
-  RENDER_IMAGE_LENGTHS,
-} from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/annotation-tool-renderers/annotationToolRendererUtils';
+import { buildMeasurementDrawing } from '@xiehe/imaging-core/canvas';
+import type { SpecialElementRenderContext } from '../types';
+import { renderDrawingPrimitives } from '../renderDrawingPrimitives';
 
-/**
- * Sacral（骶骨倾斜角）渲染器：骶骨连线 + CSVL（中央骶骨垂直线）
- */
 export function renderSacralWithPerpendicular(
   screenPoints: Point[],
   displayColor: string,
-  _imageScale: number,
+  _imageScale?: number,
   context?: SpecialElementRenderContext
-): JSX.Element | null {
-  if (screenPoints.length < 2) return null;
-
-  const imagePoints = getSpecialRenderImagePoints(screenPoints, context);
-  const projectedPoints = projectSpecialRenderPoints(imagePoints, context);
-  const midpoint = {
-    x: (imagePoints[0].x + imagePoints[1].x) / 2,
-    y: (imagePoints[0].y + imagePoints[1].y) / 2,
-  };
-  const perpLength = RENDER_IMAGE_LENGTHS.sacralPerpendicularLength;
-  const perpStart = projectSpecialRenderPoint(midpoint, context);
-  const perpEnd = projectSpecialRenderPoint(
-    { x: midpoint.x, y: midpoint.y - perpLength },
-    context
+) {
+  const drawing = buildMeasurementDrawing(
+    'sacral-with-perpendicular',
+    context?.imagePoints ?? screenPoints,
+    {
+      project: context?.imageToScreen,
+      calculationContext: context?.calculationContext,
+      resolvedMeasurement: context?.resolvedMeasurement,
+      renderPelvicSharedGeometry: context?.renderPelvicSharedGeometry,
+      effectiveCfhInteractionState: context?.effectiveCfhInteractionState,
+    }
   );
-
-  return (
-    <>
-      <line
-        x1={projectedPoints[0].x}
-        y1={projectedPoints[0].y}
-        x2={projectedPoints[1].x}
-        y2={projectedPoints[1].y}
-        stroke={displayColor}
-        strokeWidth="2"
-      />
-      <line
-        x1={perpStart.x}
-        y1={perpStart.y}
-        x2={perpEnd.x}
-        y2={perpEnd.y}
-        stroke="#22c55e"
-        strokeWidth="2"
-        strokeDasharray="5,5"
-        opacity="0.8"
-      />
-    </>
-  );
+  return drawing.length ? renderDrawingPrimitives(drawing, displayColor) : null;
 }

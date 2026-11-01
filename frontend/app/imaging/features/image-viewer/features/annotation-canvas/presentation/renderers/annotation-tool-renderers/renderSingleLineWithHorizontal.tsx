@@ -1,26 +1,24 @@
-import type { JSX } from 'react';
 import type { Point } from '@xiehe/imaging-core/contracts';
+import { buildMeasurementDrawing } from '@xiehe/imaging-core/canvas';
+import type { SpecialElementRenderContext } from '../types';
+import { renderDrawingPrimitives } from '../renderDrawingPrimitives';
 
-/**
- * CA/Pelvic/Sacral/SS渲染器：单线（不带水平参考线）
- */
 export function renderSingleLineWithHorizontal(
   screenPoints: Point[],
   displayColor: string,
-  _imageScale: number
-): JSX.Element | null {
-  void _imageScale;
-
-  if (screenPoints.length < 2) return null;
-
-  return (
-    <line
-      x1={screenPoints[0].x}
-      y1={screenPoints[0].y}
-      x2={screenPoints[1].x}
-      y2={screenPoints[1].y}
-      stroke={displayColor}
-      strokeWidth="2"
-    />
+  _imageScale?: number,
+  context?: SpecialElementRenderContext
+) {
+  const drawing = buildMeasurementDrawing(
+    'single-line-with-horizontal',
+    context?.imagePoints ?? screenPoints,
+    {
+      project: context?.imageToScreen,
+      calculationContext: context?.calculationContext,
+      resolvedMeasurement: context?.resolvedMeasurement,
+      renderPelvicSharedGeometry: context?.renderPelvicSharedGeometry,
+      effectiveCfhInteractionState: context?.effectiveCfhInteractionState,
+    }
   );
+  return drawing.length ? renderDrawingPrimitives(drawing, displayColor) : null;
 }
