@@ -13,7 +13,6 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getToolsForExamType } from '@xiehe/imaging-catalog/tools';
-import { getColorForType } from '@xiehe/imaging-catalog/annotations';
 import type { AvtTarget, FemoralHeadMode } from '@xiehe/imaging-core/contracts';
 import {
   AVT_DISC_TARGETS,
@@ -24,7 +23,6 @@ import { getKeypointGroupsForExamType } from '@xiehe/imaging-core/keypoints';
 import { getMeasurementDeriveVertebraOrder } from '@xiehe/imaging-core/anatomy';
 import {
   isAuxiliaryToolbarTool,
-  getAnnotationTypeId,
   hasUniqueAnnotationForTool,
 } from '@xiehe/imaging-core/measurements';
 import { Icon } from '@/shared/ui';
@@ -35,6 +33,7 @@ import type {
 import { EditorButton } from './EditorButton';
 import { ToolIcon } from './ToolIcon';
 import { EditorKeypointTools } from './EditorKeypointTools';
+import { EditorToolNavigation } from './EditorToolNavigation';
 import { editorColors as c, editorStyles as s } from './editorTheme';
 
 export function EditorToolSheet({
@@ -93,9 +92,16 @@ export function EditorToolSheet({
   };
   const renderGroup = (auxiliary: boolean) => (
     <View style={styles.group}>
-      <Text style={styles.groupTitle}>
-        {auxiliary ? '辅助图形' : '测量工具'}
-      </Text>
+      <View style={styles.groupHeading}>
+        <Icon
+          name={auxiliary ? 'shapes-outline' : 'resize-outline'}
+          color={c.muted}
+          size={16}
+        />
+        <Text style={styles.groupTitle}>
+          {auxiliary ? '辅助图形' : '测量标注'}
+        </Text>
+      </View>
       <View style={styles.grid}>
         {tools
           .filter(tool => isAuxiliaryToolbarTool(tool.id) === auxiliary)
@@ -105,55 +111,79 @@ export function EditorToolSheet({
               tool
             );
             const disabled = !session.editable || exists;
-            const count =
-              session.snapshot?.measurements.filter(
-                m => getAnnotationTypeId(m.type) === tool.id
-              ).length ?? 0;
+            const showPointCount =
+              !auxiliary &&
+              tool.pointsNeeded > 0 &&
+              !['avt', 'pi', 'pt', 'tpa', 'lateral-cobb'].includes(tool.id);
             const selected = state.tool === tool.id || configured === tool.id;
-            const label = [
-              'circle',
-              'ellipse',
-              'rectangle',
-              'arrow',
-              'polygon',
-            ].includes(tool.id)
-              ? tool.description
+            const label = auxiliary
+              ? tool.name
+                  .replace('Auxiliary ', '')
+                  .replace('Polygons', '多边形')
               : tool.name;
             return (
-              <Pressable
-                key={tool.id}
-                disabled={disabled}
-                accessibilityRole="button"
-                accessibilityLabel={`绘制${label}`}
-                accessibilityState={{ selected, disabled }}
-                accessibilityHint={exists ? '该测量已存在' : undefined}
-                onPress={() => activate(tool.id)}
-                onLongPress={() => setConfigured(tool.id)}
-                style={[
-                  styles.tool,
-                  selected && styles.activeTool,
-                  disabled && styles.disabledTool,
-                ]}
-              >
-                <ToolIcon
-                  toolId={tool.id}
-                  iconId={tool.icon}
-                  color={selected ? '#FFF' : getColorForType(tool.id)}
-                />
-                <Text style={styles.toolName} numberOfLines={2}>
-                  {label}
-                </Text>
-                <Text style={styles.pointCount}>
-                  {exists
-                    ? '已存在'
-                    : ['avt', 'pi', 'pt', 'tpa'].includes(tool.id)
-                      ? '分步放置'
-                      : tool.pointsNeeded
-                        ? `${tool.pointsNeeded} 点`
-                        : '自由绘制'}
-                </Text>
-                {!!count && <Text style={styles.badge}>{count}</Text>}
-              </Pressable>
+              <View key={tool.id} style={styles.toolSlot}>
+                <Pressable
+                  disabled={disabled}
+                  accessibilityRole="button"
+                  accessibilityLabel={`绘制${label}`}
+                  accessibilityState={{ selected, disabled }}
+                  accessibilityHint={
+                    exists
+                      ? '该测量已存在'
+                      : showPointCount
+                        ? `需要 ${tool.pointsNeeded} 个点`
+                        : undefined
+                  }
+                  onPress={() => activate(tool.id)}
+                  onLongPress={() => setConfigured(tool.id)}
+                  style={[
+                    styles.tool,
+                    selected && styles.activeTool,
+                    disabled && styles.disabledTool,
+                  ]}
+                >
+                  <ToolIcon
+                    toolId={tool.id}
+                    iconId={tool.icon}
+                    color={disabled ? c.muted : c.text}
+                    size={24}
+                  />
+                  <Text
+                    style={[
+                      styles.toolName,
+                      Array.from(label).length >= 5 && styles.longToolName,
+                    ]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                  >
+                    {label}
+                  </Text>
+                  {showPointCount && (
+                    <View style={[styles.cornerBadge, styles.pointBadge]}>
+                      <Text style={styles.pointCount}>{tool.pointsNeeded}</Text>
+                    </View>
+                  )}
+                  <View
+                    style={[
+                      styles.cornerBadge,
+                      styles.availabilityBadge,
+                      !disabled && styles.availableBadge,
+                    ]}
+                  >
+                    <Icon
+                      name={disabled ? 'remove' : 'checkmark'}
+                      size={10}
+                      color={c.text}
+                    />
+                  </View>
+                  {selected && (
+                    <View style={[styles.cornerBadge, styles.selectedBadge]}>
+                      <Icon name="checkmark" size={10} color={c.text} />
+                    </View>
+                  )}
+                </Pressable>
+              </View>
             );
           })}
       </View>
@@ -199,39 +229,19 @@ export function EditorToolSheet({
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={styles.content}
           >
-            <View style={s.row}>
-              <EditorButton
-                label="移动 / 编辑"
-                icon="hand-left-outline"
-                active={state.tool === 'hand' || state.tool === 'keypoint'}
-                disabled={!session.editable}
-                onPress={() => {
-                  session.chooseTool(tab === 'keypoint' ? 'keypoint' : 'hand');
-                  onClose();
-                }}
-              />
-            </View>
-            {!!keypointGroups.length && (
-              <View style={s.row}>
-                <EditorButton
-                  label="测量标注"
-                  active={tab === 'measurement'}
-                  onPress={() => {
-                    setTab('measurement');
-                    setConfigured('');
-                  }}
-                />
-                <EditorButton
-                  label="关键点"
-                  icon="locate-outline"
-                  active={tab === 'keypoint'}
-                  onPress={() => {
-                    setTab('keypoint');
-                    setConfigured('');
-                  }}
-                />
-              </View>
-            )}
+            <EditorToolNavigation
+              tab={tab}
+              editable={session.editable}
+              canUseKeypoints={!!keypointGroups.length}
+              onManualMode={() => {
+                setConfigured('');
+                session.chooseTool(tab === 'keypoint' ? 'keypoint' : 'hand');
+              }}
+              onTabChange={next => {
+                setTab(next);
+                setConfigured('');
+              }}
+            />
             {tab === 'keypoint' && (
               <EditorKeypointTools session={session} onClose={onClose} />
             )}
@@ -450,34 +460,45 @@ const styles = StyleSheet.create({
   },
   content: { padding: 16, gap: 20 },
   group: { gap: 10 },
+  groupHeading: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   groupTitle: { color: c.muted, fontSize: 12, fontWeight: '600' },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    rowGap: 12,
+    marginHorizontal: -4,
+  },
+  // 四列槽位不参与剩余空间分配，最后一行和前面各行保持相同卡片尺寸。
+  toolSlot: { width: '25%', paddingHorizontal: 4 },
   tool: {
-    width: '23%',
-    flexGrow: 1,
-    maxWidth: '25%',
-    minHeight: 91,
+    height: 64,
     borderWidth: 1,
     borderColor: c.border,
-    backgroundColor: c.surface,
+    backgroundColor: c.raised,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 6,
+    padding: 4,
     gap: 4,
   },
   activeTool: { backgroundColor: c.blue, borderColor: '#60A5FA' },
   disabledTool: { opacity: 0.45 },
-  toolName: { fontSize: 11, textAlign: 'center', color: c.text },
-  pointCount: { color: c.muted, fontSize: 9 },
-  badge: {
+  toolName: { fontSize: 12, textAlign: 'center', color: c.text },
+  longToolName: { fontSize: 10 },
+  pointCount: { color: c.text, fontSize: 9 },
+  cornerBadge: {
     position: 'absolute',
-    top: 4,
-    right: 5,
-    color: '#6EE7B7',
-    fontSize: 10,
-    fontWeight: '700',
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#4B5563',
   },
+  pointBadge: { bottom: -4, left: -4 },
+  availabilityBadge: { bottom: -4, right: -4 },
+  availableBadge: { backgroundColor: '#10B981' },
+  selectedBadge: { top: -4, left: -4, backgroundColor: c.blue },
   configuration: {
     backgroundColor: c.surface,
     padding: 13,

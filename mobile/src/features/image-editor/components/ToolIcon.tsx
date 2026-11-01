@@ -20,10 +20,12 @@ export function ToolIcon({
   toolId,
   iconId,
   color,
+  size = 32,
 }: {
   toolId: string;
   iconId: string;
   color: string;
+  size?: number;
 }) {
   const xml =
     medicalToolIcons[iconId.replace('medical-', '')] ??
@@ -31,14 +33,14 @@ export function ToolIcon({
   return xml ? (
     <SvgXml
       xml={xml.replaceAll('currentColor', color)}
-      width={32}
-      height={32}
+      width={size}
+      height={size}
     />
   ) : (
     <Icon
       name={nativeIcons[toolId] ?? 'analytics-outline'}
       color={color}
-      size={25}
+      size={size * 0.8}
     />
   );
 }
