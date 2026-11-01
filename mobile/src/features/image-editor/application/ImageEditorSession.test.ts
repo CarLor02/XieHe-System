@@ -107,6 +107,64 @@ function draw(session: ImageEditorSession, type: string, supplied: Point[]) {
 }
 
 describe('mobile image editing workflow', () => {
+  it.each([false, true])(
+    'reopens saved AI Cobb and keeps both drag directions synchronized (legacy flag=%s)',
+    async legacy => {
+      const { session, gateway } = await setup();
+      gateway.measure.mockResolvedValue({
+        measurements: [
+          {
+            type: 'Cobb-Auto1',
+            value: '10.00°',
+            points: points.slice(0, 4),
+            upper_vertebra: 'T1',
+            lower_vertebra: 'T3',
+          },
+        ],
+        vertebrae: ['T1-1', 'T1-2', 'T3-3', 'T3-4'].map((label, index) => ({
+          label,
+          corners: [points[index], points[index], points[index], points[index]],
+          confidence: 0.9,
+          source: AnnotationSource.AI,
+        })),
+      });
+      expect(await session.analyze()).toBe(true);
+      const id = session.snapshot!.measurements[0].id;
+      expect(session.snapshot!.measurements[0].keypointSynced).toBe(true);
+      expect(await session.save()).toBe(true);
+      const saved = gateway.save.mock.calls[0][0].annotation;
+      const wire = JSON.parse(JSON.stringify(saved));
+      if (legacy) wire.measurements[0].keypointSynced = 1;
+      const reopened = await setup(image(wire));
+      const next = reopened.session;
+      expect(next.snapshot!.measurements[0].keypointSynced).toBe(true);
+      const fromKeypoint = { x: 80, y: 90 };
+      next.beginDrag({ kind: 'keypoint', keypointId: 'T1-1' });
+      next.moveDrag(fromKeypoint);
+      next.endDrag();
+      expect(next.snapshot!.measurements[0].points[0]).toEqual(fromKeypoint);
+      const fromCobb = { x: 340, y: 350 };
+      next.beginDrag({ kind: 'point', measurementId: id, pointIndex: 3 });
+      next.moveDrag(fromCobb);
+      next.endDrag();
+      expect(
+        next.snapshot!.keypoints.find(k => k.id === 'T3-4')?.point
+      ).toEqual(fromCobb);
+      next.undo();
+      expect(
+        next.snapshot!.keypoints.find(k => k.id === 'T3-4')?.point
+      ).toEqual(points[3]);
+      next.redo();
+      expect(await next.save()).toBe(true);
+      const again = reopened.gateway.save.mock.calls[0][0].annotation;
+      expect(again.measurements[0]).toMatchObject({
+        id,
+        keypointSynced: true,
+        points: [fromKeypoint, points[1], points[2], fromCobb],
+      });
+    }
+  );
+
   it('throttles readouts during a drag but immediately publishes the final or cancelled state', async () => {
     const { session } = await setup(
       image(

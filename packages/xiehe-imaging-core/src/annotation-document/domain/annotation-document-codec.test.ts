@@ -8,6 +8,41 @@ import {
 } from './annotation-document-codec';
 
 describe('annotation document codec', () => {
+  it.each([
+    [1, true],
+    [0, false],
+    [true, true],
+    [false, false],
+    [undefined, undefined],
+    ['1', '1'],
+    [2, 2],
+  ])(
+    'normalizes only numeric legacy binding flags (%s)',
+    (stored, expected) => {
+      const input = {
+        measurements: [
+          {
+            id: 'cobb-1',
+            type: 'cobb1',
+            keypointSynced: stored,
+            points: [{ x: 1, y: 0 }],
+            futureMetadata: { enabled: 1, count: 0 },
+          },
+        ],
+      };
+      const decoded = decodeAnnotationDocument(input)!;
+      expect(decoded.measurements[0].keypointSynced).toBe(expected);
+      expect(decoded.measurements[0]).toMatchObject({
+        points: [{ x: 1, y: 0 }],
+        futureMetadata: { enabled: 1, count: 0 },
+      });
+      expect(input.measurements[0].keypointSynced).toBe(stored);
+      expect(
+        decodeAnnotationDocument(JSON.parse(JSON.stringify(decoded)))
+      ).toEqual(decoded);
+    }
+  );
+
   it('round-trips current measurement metadata and keypoint layers', () => {
     const document = createAnnotationDocument({
       measurements: [

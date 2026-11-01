@@ -76,6 +76,11 @@ function readMeasurement(
   // 旧客户端读取再保存时不能把尚未认识的业务字段裁掉。
   return {
     ...value,
+    // 旧 HTTP 响应曾把 JSON 布尔值转成 1/0，重存后也会进入历史快照。
+    // 仅修复已知绑定标记，不能把坐标、版本号或未知 metadata 的数字转成布尔值。
+    ...(value.keypointSynced === 1 || value.keypointSynced === 0
+      ? { keypointSynced: value.keypointSynced === 1 }
+      : {}),
     // 最早期本地快照没有 id；生成稳定的文档内 id，避免整条标注丢失。
     id:
       typeof value.id === 'string' && value.id.length > 0
