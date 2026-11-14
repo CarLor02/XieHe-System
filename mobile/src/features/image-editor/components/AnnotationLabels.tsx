@@ -7,6 +7,7 @@ import {
   type TransformContext,
 } from '@xiehe/imaging-core/canvas';
 import {
+  getAdaptiveFontSize,
   getAnnotationDisplayName,
   getAnnotationTypeId,
   getColorForType,
@@ -72,7 +73,7 @@ export const AnnotationLabels = memo(function AnnotationLabels({
             x={point.x + 19}
             y={point.y - 10}
             fill={color}
-            fontSize={11}
+            fontSize={getAdaptiveFontSize(context.imageScale)}
             fontWeight="500"
           >
             {label}

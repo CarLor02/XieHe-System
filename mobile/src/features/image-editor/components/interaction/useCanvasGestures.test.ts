@@ -10,6 +10,7 @@ import { useCanvasGestures } from './useCanvasGestures';
 type Callback = (...args: unknown[]) => void;
 const runtime = vi.hoisted(() => ({
   handlers: {} as Record<string, Record<string, Callback>>,
+  frame: () => {},
   rnQueue: [] as (() => void)[],
 }));
 
@@ -59,7 +60,9 @@ vi.mock('react-native-worklets', () => ({
 vi.mock('react-native-reanimated', async () => {
   const { useState } = await import('react');
   return {
-    useFrameCallback: () => {},
+    useFrameCallback: (frame: () => void) => {
+      runtime.frame = frame;
+    },
     useSharedValue: <T>(initial: T) => {
       const [shared] = useState(() => {
         let value = initial;
@@ -131,6 +134,38 @@ describe('pinch viewport lifecycle', () => {
   afterEach(() => {
     flushSync(() => root.unmount());
     container.remove();
+  });
+
+  it('reprojects during the pinch and skips stale samples when JS is busy', () => {
+    const sample = (scale: number) => ({
+      focalX: 130,
+      focalY: 310,
+      numberOfPointers: 2,
+      scale,
+    });
+    pinch('onStart', sample(1));
+    pinch('onUpdate', sample(1.2));
+    runtime.frame();
+    flushRN();
+    expect(canvas.renderedViewport).toEqual(canvas.viewport.get());
+    expect(canvas.renderedViewport.imageScale).toBe(1.2);
+
+    for (const scale of [1.4, 1.6, 2]) {
+      pinch('onUpdate', sample(scale));
+      runtime.frame();
+    }
+    expect(runtime.rnQueue).toHaveLength(1);
+    flushRN();
+    runtime.frame();
+    flushRN();
+    expect(canvas.renderedViewport.imageScale).toBe(2);
+    pinch('onUpdate', sample(2.2));
+    runtime.frame();
+    pinch('onUpdate', sample(2.4));
+    pinch('onFinalize');
+    flushRN();
+    expect(canvas.renderedViewport).toEqual(canvas.viewport.get());
+    expect(canvas.renderedViewport.imageScale).toBe(2.4);
   });
 
   it.each([1, 0])(

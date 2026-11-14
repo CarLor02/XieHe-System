@@ -141,12 +141,39 @@ export function useCanvasGestures(
     [gestureState, interaction]
   );
 
+  const projectingPinch = useSharedValue(false);
+  const lastPinchProjection = useSharedValue<Viewport | null>(null);
+  const projectPinch = useCallback(
+    (current: Viewport) => {
+      setRenderedViewport(current);
+      projectingPinch.set(false);
+    },
+    [projectingPinch]
+  );
+
   // 一个 UI 显示帧最多提交一次，且至多一个 JS 计算在途；JS 忙时仅保留最新坐标。
   useFrameCallback(
     useCallback(() => {
       'worklet';
 
       const state = gestureState.get();
+      if (state.phase === 'pinch') {
+        // 图层矩阵即时跟随手势；屏幕尺寸的文字、点和箭头也需在缩放期间重新投影。
+        // JS 忙时保留最新视口，避免积压过时的缩放事件。
+        const current = viewport.get();
+        const last = lastPinchProjection.get();
+        if (
+          !projectingPinch.get() &&
+          (last?.imageScale !== current.imageScale ||
+            last.imagePosition.x !== current.imagePosition.x ||
+            last.imagePosition.y !== current.imagePosition.y)
+        ) {
+          lastPinchProjection.set(current);
+          projectingPinch.set(true);
+          scheduleOnRN(projectPinch, current);
+        }
+        return;
+      }
       if (
         state.phase !== 'pan' ||
         !state.plan ||
@@ -160,7 +187,14 @@ export function useCanvasGestures(
         mailbox,
       });
       scheduleOnRN(move, state.id, mailbox.latest!);
-    }, [gestureState, move])
+    }, [
+      gestureState,
+      move,
+      lastPinchProjection,
+      projectingPinch,
+      projectPinch,
+      viewport,
+    ])
   );
   const finish = useCallback(
     (id: number, sample: PanSample, current: Viewport) => {
