@@ -1,8 +1,7 @@
 import { memo, useMemo } from 'react';
-import { Circle, G, Line } from 'react-native-svg';
+import { G, Text } from 'react-native-svg';
 import type { SharedValue } from 'react-native-reanimated';
 import {
-  imageToScreen,
   getBilateralPelvicGeometryOwnerId,
   type TransformContext,
 } from '@xiehe/imaging-core/canvas';
@@ -23,7 +22,9 @@ import {
   type AnnotationLayer,
 } from './annotationLayers';
 import { measurementGeometry } from './measurementGeometry';
-import { MeasurementDrawing } from './MeasurementDrawing';
+import { DrawingPrimitives } from './DrawingPrimitives';
+import { DragGeometry } from './DragGeometry';
+import { measurementDrawing, landmarkDrawings } from './geometryDrawing';
 import { SvgLayer } from './SvgLayer';
 import { NativeControlPoints } from './NativeControlPoints';
 import { AnnotationLabels } from './AnnotationLabels';
@@ -38,6 +39,7 @@ interface LayerProps {
   selection: EditorSelection | null;
   showKeypoints: boolean;
 
+  dynamic?: boolean;
   preview?: MeasurementData | null;
 }
 
@@ -51,6 +53,7 @@ const GeometryLayer = memo(
     viewport,
     selection,
     showKeypoints,
+    dynamic = false,
     preview = null,
   }: LayerProps) {
     // 同倍率平移只移动裁剪窗口。图元、编号和测量规则都在零平移坐标系中复用。
@@ -64,122 +67,96 @@ const GeometryLayer = memo(
       }),
       [imageScale, imageNaturalSize, containerSize]
     );
-    const drawings = useMemo(
-      () =>
-        layer.measurements.map(measurement => ({
+    const drawings = useMemo(() => {
+      const items = layer.measurements.map(measurement =>
+        measurementDrawing(
           measurement,
-          primitives: measurementGeometry(measurement, projection, {
+          measurementGeometry(measurement, projection, {
             calculationContext,
             renderPelvicSharedGeometry: measurement.id === pelvicOwnerId,
           }),
-        })),
-      [layer.measurements, projection, calculationContext, pelvicOwnerId]
-    );
-    const previewGeometry = preview
-      ? measurementGeometry(preview, projection)
-      : null;
+          projection,
+          !!selection &&
+            'measurementId' in selection &&
+            selection.measurementId === measurement.id,
+          pointLabels.get(measurement.id)
+        )
+      );
+      items.push(
+        ...landmarkDrawings(layer, projection, selection, showKeypoints)
+      );
+      if (preview)
+        items.push(
+          measurementDrawing(
+            preview,
+            measurementGeometry(preview, projection),
+            projection,
+            true
+          )
+        );
+      return items;
+    }, [
+      layer,
+      projection,
+      calculationContext,
+      pelvicOwnerId,
+      selection,
+      pointLabels,
+      showKeypoints,
+      preview,
+    ]);
     const bounds = geometryBounds(
       layer,
       projection,
       showKeypoints,
       preview,
-      [
-        ...drawings.map(drawing => drawing.primitives),
-        ...(previewGeometry ? [previewGeometry] : []),
-      ],
+      drawings.map(d => d.primitives),
       context.imagePosition,
-      layer.measurements.reduce(
-        (max, item) =>
+      drawings.reduce(
+        (max, drawing) =>
           Math.max(
             max,
-            ...(pointLabels.get(item.id) ?? []).map(
-              label => 8 + (label?.length ?? 0) * 16
-            )
+            ...(drawing.ordinals ?? []).map(({ text }) => 8 + text.length * 16)
           ),
         32
       )
     );
     if (!bounds) return null;
-    const project = (point: Point) => imageToScreen(point, projection);
+    if (dynamic && DragGeometry) {
+      return (
+        <DragGeometry
+          drawings={drawings}
+          bounds={bounds}
+          context={projection}
+          viewport={viewport}
+        />
+      );
+    }
     return (
       <SvgLayer context={projection} viewport={viewport} bounds={bounds}>
-        {drawings.map(({ measurement, primitives }) => (
-          <MeasurementDrawing
-            key={measurement.id}
-            measurement={measurement}
-            context={projection}
-            geometry={primitives}
-            pointLabels={pointLabels.get(measurement.id)}
-            selected={
-              !!selection &&
-              'measurementId' in selection &&
-              selection.measurementId === measurement.id
-            }
-          />
+        {drawings.map(({ key, color, primitives, ordinals }) => (
+          <G key={key}>
+            <DrawingPrimitives primitives={primitives} color={color} />
+            {ordinals?.map(({ point, text }, j) => (
+              <Text
+                key={j}
+                x={point.x}
+                y={point.y}
+                fill={color}
+                fontSize={12}
+                fontWeight="bold"
+              >
+                {text}
+              </Text>
+            ))}
+          </G>
         ))}
-        {showKeypoints &&
-          layer.keypoints.map(keypoint => {
-            if (
-              selection?.kind === 'keypoint' &&
-              selection.keypointId === keypoint.id
-            )
-              return null;
-            const point = project(keypoint.point);
-            return (
-              <Circle
-                key={keypoint.id}
-                cx={point.x}
-                cy={point.y}
-                r={4}
-                fill="#111827"
-                stroke="#34D399"
-                strokeWidth={1.5}
-              />
-            );
-          })}
-        {layer.calibration.length === 2 &&
-          (() => {
-            const [a, b] = layer.calibration.map(project);
-            return (
-              <G>
-                <Line
-                  x1={a.x}
-                  y1={a.y}
-                  x2={b.x}
-                  y2={b.y}
-                  stroke="#FBBF24"
-                  strokeWidth={2}
-                  strokeDasharray="4 3"
-                />
-                {[a, b].map((point, index) =>
-                  selection?.kind === 'calibration' &&
-                  selection.pointIndex === index ? null : (
-                    <Circle
-                      key={index}
-                      cx={point.x}
-                      cy={point.y}
-                      r={5}
-                      stroke="#FBBF24"
-                      fill="#111827"
-                    />
-                  )
-                )}
-              </G>
-            );
-          })()}
-        {preview && previewGeometry && (
-          <MeasurementDrawing
-            geometry={previewGeometry}
-            measurement={preview}
-            context={projection}
-            selected
-          />
-        )}
       </SvgLayer>
     );
   },
   (a, b) =>
     sameLayer(a.layer, b.layer) &&
+    a.dynamic === b.dynamic &&
     a.context === b.context &&
     a.pointLabels === b.pointLabels &&
     a.pelvicOwnerId === b.pelvicOwnerId &&
@@ -193,7 +170,7 @@ const GeometryLayer = memo(
     a.preview === b.preview
 );
 
-/** 独立 SVG 根节点保证动态几何失效时不会重建静态标注位图。 */
+/** 拖动时只重画联动的几何，静态图层继续使用已有位图。 */
 export function AnnotationOverlay({
   snapshot,
   baseline,
@@ -254,7 +231,10 @@ export function AnnotationOverlay({
       ),
     [definitions]
   );
-  const layers = partitionAnnotations(snapshot, baseline, selection);
+  const layers = useMemo(
+    () => partitionAnnotations(snapshot, baseline, selection),
+    [snapshot, baseline, selection]
+  );
   return (
     <>
       <GeometryLayer
@@ -268,6 +248,7 @@ export function AnnotationOverlay({
         showKeypoints={showKeypoints}
       />
       <GeometryLayer
+        dynamic
         layer={layers.dynamic}
         pelvicOwnerId={pelvicOwnerId}
         pointLabels={pointLabels}
@@ -281,6 +262,7 @@ export function AnnotationOverlay({
       {showLabels && (
         <AnnotationLabels
           readouts={readouts}
+          baseline={baseline}
           context={context}
           viewport={viewport}
           selection={selection}

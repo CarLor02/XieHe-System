@@ -16,6 +16,7 @@ import {
   partitionAnnotations,
   sameLayer,
 } from './annotationLayers';
+import { measurementDrawing } from './geometryDrawing';
 import { measurementGeometry } from './measurementGeometry';
 import { projectControlPoint } from './interaction/canvasGestureModel';
 
@@ -70,6 +71,63 @@ function snapshot(measurements: MeasurementData[]): AnnotationEditorSnapshot {
 }
 
 describe('annotation drawing layers', () => {
+  it('draws both CSS and TTS at the moved sacral endpoint and keeps the other labels and geometry static', () => {
+    const css = { ...measurement('css'), type: 'css', keypointSynced: true };
+    const tts = {
+      ...measurement('tts'),
+      type: 'tts',
+      keypointSynced: true,
+      points: [{ x: 130, y: 50 }, { x: 370, y: 50 }, ...css.points],
+    };
+    const other = measurement('unrelated');
+    const base = snapshot([css, tts, other]);
+    base.keypoints = ['SL', 'SR'].map((id, i) => ({
+      id,
+      point: css.points[i],
+      confidence: 1,
+      source: AnnotationSource.MANUAL,
+    }));
+    const selection = {
+      kind: 'point' as const,
+      measurementId: css.id,
+      pointIndex: 0,
+    };
+    const target = { x: 80, y: 260 };
+    const moved = dragAnnotation(base, selection, target, {
+      examType: '正位X光片',
+      imageNaturalSize: context.imageNaturalSize,
+      standardDistance: 100,
+      standardDistancePoints: base.standardDistancePoints,
+    });
+    const layers = partitionAnnotations(moved, base, selection);
+    expect(layers.static.measurements).toEqual([other]);
+    expect(layers.dynamic.keypoints.map(k => k.id)).toEqual(['SL']);
+    const [selected, linked] = layers.dynamic.measurements;
+    expect([selected.id, linked.id]).toEqual(['css', 'tts']);
+    const lineStart = imageToScreen(target, context);
+    const drawing = (m: MeasurementData) =>
+      measurementDrawing(
+        m,
+        measurementGeometry(m, context),
+        context,
+        m.id === selection.measurementId,
+        ['1', '2', '3', '4']
+      );
+    for (const m of [selected, linked]) {
+      expect(drawing(m).primitives).toContainEqual(
+        expect.objectContaining({ kind: 'line', start: lineStart })
+      );
+    }
+    expect(drawing(selected).ordinals).toBeUndefined();
+    expect(drawing(linked).ordinals).toContainEqual({
+      point: { x: lineStart.x + 8, y: lineStart.y - 8 },
+      text: '3',
+    });
+    expect(
+      drawing(linked).primitives.filter(p => p.kind === 'polygon')
+    ).toHaveLength(2);
+  });
+
   it('moves manually linked geometry into the dynamic layer while keeping unrelated drawing references stable', () => {
     const [a, b, c] = ['a', 'b', 'c'].map(measurement);
     const before = snapshot([a, b, c]);
