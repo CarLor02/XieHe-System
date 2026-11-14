@@ -103,6 +103,7 @@ export function DragGeometry({
   // 图元在零平移的投影坐标中。录制范围包含画布外的负坐标，平移后仍可显示它们。
   const picture = useMemo(
     () =>
+      bounds &&
       createPicture(canvas => {
         const paint = Skia.Paint();
         for (const drawing of drawings) {
@@ -114,7 +115,9 @@ export function DragGeometry({
       }, bounds),
     [drawings, bounds, font]
   );
+  const visible = picture !== null;
   const transform = useDerivedValue<Transforms3d>(() => {
+    if (!visible) return [];
     const live = viewport.get();
     const ratio = live.imageScale / imageScale;
     return [
@@ -123,15 +126,18 @@ export function DragGeometry({
       { scale: ratio },
     ];
   });
+  // 空闲时清空图元并移除 Group。保留同一个原生表面，松手和下一次起拖都不必重建纹理。
   return (
     <Canvas
       pointerEvents="none"
       style={StyleSheet.absoluteFill}
       colorSpace="srgb"
     >
-      <Group transform={transform}>
-        <Picture picture={picture} />
-      </Group>
+      {picture && (
+        <Group transform={transform}>
+          <Picture picture={picture} />
+        </Group>
+      )}
     </Canvas>
   );
 }

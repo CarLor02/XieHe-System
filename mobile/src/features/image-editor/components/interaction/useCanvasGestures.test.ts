@@ -156,6 +156,44 @@ describe('pinch viewport lifecycle', () => {
     container.remove();
   });
 
+  it('publishes the first endpoint displacement with activation and restores the baseline on interruption', async () => {
+    await session.load();
+    session.imageLoaded(imageSize);
+    const baseline = session.snapshot;
+    const observed: number[] = [];
+    const unsubscribe = session.subscribe(() => {
+      if (session.getState().dragging)
+        observed.push(session.snapshot!.measurements[0].points[0].x);
+    });
+    try {
+      // 端点在屏幕 x=100，抓取偏移 5；起拖时手指已移动 12，图像坐标应立即移动 30。
+      const down = {
+        x: 105,
+        y: 400,
+        translationX: 0,
+        translationY: 0,
+        numberOfPointers: 1,
+      };
+      runtime.handlers.pan.onBegin(down);
+      runtime.handlers.pan.onStart({ ...down, x: 117 });
+      flushRN();
+      expect(observed).toEqual([280]);
+      expect(session.dragBaseline).toBe(baseline);
+      expect(session.getState().history?.past).toHaveLength(0);
+      pinch('onStart', {
+        focalX: 117,
+        focalY: 400,
+        scale: 1,
+        numberOfPointers: 2,
+      });
+      flushRN();
+      expect(session.snapshot).toBe(baseline);
+      expect(session.getState().history?.past).toHaveLength(0);
+    } finally {
+      unsubscribe();
+    }
+  });
+
   it('keeps panning when Android activates over a CSS endpoint after touching blank canvas', async () => {
     await session.load();
     session.imageLoaded(imageSize);

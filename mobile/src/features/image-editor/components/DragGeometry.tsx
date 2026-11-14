@@ -7,7 +7,7 @@ import type { Viewport } from './interaction/canvasGestureModel';
 
 export interface DragGeometryProps {
   drawings: GeometryDrawing[];
-  bounds: DrawingBounds;
+  bounds: DrawingBounds | null;
   context: TransformContext;
   viewport: SharedValue<Viewport>;
 }

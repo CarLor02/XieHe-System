@@ -104,8 +104,8 @@ export function useCanvasGestures(
     [preview, viewport]
   );
   const begin = useCallback(
-    (id: number, point: Point, current: Viewport) => {
-      const plan = interaction.begin(id, point, context(current));
+    (id: number, point: Point, current: Viewport, activatedAt: Point) => {
+      const plan = interaction.begin(id, point, context(current), activatedAt);
       scheduleOnUI(
         (gestureId: number, next: DragPlan) => {
           const state = gestureState.get();
@@ -366,7 +366,8 @@ export function useCanvasGestures(
           begin,
           id,
           down?.point ?? { x: event.x, y: event.y },
-          down?.viewport ?? viewport.get()
+          down?.viewport ?? viewport.get(),
+          { x: event.x, y: event.y }
         );
       })
       .onUpdate(event => {

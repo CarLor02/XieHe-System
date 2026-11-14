@@ -468,12 +468,29 @@ export class ImageEditorSession {
     });
   }
 
-  beginDrag(selection: EditorSelection) {
-    if (!this.editable || this.state.drawing || !this.snapshot) return;
+  beginDrag(selection: EditorSelection, initialPoint?: Point) {
+    const base = this.snapshot;
+    const history = this.state.history;
+    if (!this.editable || this.state.drawing || !base || !history) return;
     // 编辑函数不可变更新，保留基线引用可让未受影响的标注跨帧复用。
-    this.dragBase = this.snapshot;
-    this.dragPoint = null;
-    this.update({ selection, dragging: true });
+    this.dragBase = base;
+    this.dragPoint = initialPoint ?? null;
+    // 起拖时把选中态和首个位移一次发布，联动项直接进入动态层，取消和撤销仍以落点前为基线。
+    this.update({
+      selection,
+      dragging: true,
+      history: initialPoint
+        ? {
+            ...history,
+            present: dragAnnotation(
+              base,
+              selection,
+              initialPoint,
+              this.context
+            ),
+          }
+        : history,
+    });
   }
   moveDrag(point: Point) {
     if (!this.dragBase || !this.state.selection || !this.editable) return;

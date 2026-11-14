@@ -24,7 +24,12 @@ export class CanvasInteraction {
 
   constructor(readonly session: ImageEditorSession) {}
 
-  begin(id: number, start: Point, context: TransformContext): DragPlan {
+  begin(
+    id: number,
+    start: Point,
+    context: TransformContext,
+    activatedAt: Point = start
+  ): DragPlan {
     this.cancel();
     if (this.disposed)
       return { kind: 'viewport', origin: context.imagePosition };
@@ -57,7 +62,15 @@ export class CanvasInteraction {
     const anchor = selectionAnchor(this.session, selection, point);
     const offset = { x: point.x - anchor.x, y: point.y - anchor.y };
     this.drag = { kind: 'annotation', offset };
-    this.session.beginDrag(selection);
+    // 命中使用按下位置，几何则从激活位置开始，保留手指与控制点的抓取偏移。
+    const initial =
+      activatedAt.x !== start.x || activatedAt.y !== start.y
+        ? screenToImage(activatedAt.x, activatedAt.y, context)
+        : null;
+    this.session.beginDrag(
+      selection,
+      initial ? { x: initial.x - offset.x, y: initial.y - offset.y } : undefined
+    );
     const origin = imageToScreen({ x: 0, y: 0 }, context);
     const unit = imageToScreen({ x: 1, y: 0 }, context);
     const measurement =

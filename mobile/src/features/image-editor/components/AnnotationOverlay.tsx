@@ -121,7 +121,6 @@ const GeometryLayer = memo(
         32
       )
     );
-    if (!bounds) return null;
     if (dynamic && DragGeometry) {
       return (
         <DragGeometry
@@ -132,6 +131,7 @@ const GeometryLayer = memo(
         />
       );
     }
+    if (!bounds) return null;
     return (
       <SvgLayer context={projection} viewport={viewport} bounds={bounds}>
         {drawings.map(({ key, color, primitives, ordinals }) => (
