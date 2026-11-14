@@ -25,7 +25,7 @@ import {
   getInteractivePointsCount,
   getApLabelGapX,
   shouldPreserveCanvasValue,
-  shouldShowPointLabels,
+  getMeasurementPointLabel,
 } from '@xiehe/imaging-catalog/annotations';
 import { getAvtLabelPosition } from '@xiehe/imaging-core/measurements/ap';
 import { renderAvtMeasurement } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/annotation-tool-renderers';
@@ -42,11 +42,6 @@ import { formatDisplayValue } from '@/app/imaging/features/image-viewer/features
 import { renderSpecialAnnotationElements } from '@/app/imaging/features/image-viewer/features/annotation-canvas/presentation/renderers/special-annotation-renderer-registry';
 import { getBilateralPelvicGeometryOwnerId } from '@xiehe/imaging-core/canvas';
 import { resolveVariableMeasurement } from '@xiehe/imaging-core/measurements';
-import {
-  getPelvicPointDisplayLabel,
-  getPelvicSharedPointLabelKey as getResolvedPelvicSharedPointLabelKey,
-  shouldShowPelvicPointDisplayLabel,
-} from '@xiehe/imaging-core/measurements/lateral';
 
 interface RenderMeasurementProps {
   measurement: MeasurementData;
@@ -80,63 +75,12 @@ function getPointColor(
   return fallbackColor;
 }
 
-function getPointDisplayLabel(
-  measurement: MeasurementData,
-  pointIndex: number
-): string | number {
-  if (
-    measurement.type.startsWith('AI检测-') &&
-    measurement.points.length === 1
-  ) {
-    return measurement.value;
-  }
-
-  const pelvicLabel = getPelvicPointDisplayLabel(measurement, pointIndex);
-  if (pelvicLabel !== null) return pelvicLabel;
-
-  return pointIndex + 1;
-}
-
-function getPelvicSharedPointLabelKey(
-  measurement: MeasurementData,
-  pointIndex: number
-): string | null {
-  const typeId = getAnnotationTypeId(measurement.type);
-
-  if (typeId === 'ss') {
-    if (pointIndex === 0) return 'pelvic-s1-1';
-    if (pointIndex === 1) return 'pelvic-s1-2';
-  }
-
-  return getResolvedPelvicSharedPointLabelKey(measurement, pointIndex);
-}
-
-function ownsSharedPointLabel(
-  measurement: MeasurementData,
-  pointIndex: number,
-  allMeasurements: MeasurementData[],
-  measurementIndex: number
-): boolean {
-  const labelKey = getPelvicSharedPointLabelKey(measurement, pointIndex);
-  if (!labelKey) return true;
-
-  return !allMeasurements
-    .slice(0, measurementIndex)
-    .some(previous =>
-      previous.points.some(
-        (_, previousPointIndex) =>
-          getPelvicSharedPointLabelKey(previous, previousPointIndex) ===
-          labelKey
-      )
-    );
-}
-
 function renderIndexedPoint({
   measurement,
   point,
   pointIndex,
   pointColor,
-  showPointLabel,
+  pointLabel,
   selectionState,
   hoverState,
   pointBindings,
@@ -148,7 +92,7 @@ function renderIndexedPoint({
   point: Point;
   pointIndex: number;
   pointColor: string;
-  showPointLabel: boolean;
+  pointLabel?: string;
   selectionState: SelectionState;
   hoverState: HoverState;
   pointBindings: AnnotationBindings;
@@ -254,7 +198,7 @@ function renderIndexedPoint({
           opacity="0.6"
         />
       )}
-      {showPointLabel && (
+      {pointLabel && (
         <text
           x={point.x + 8}
           y={point.y - 8}
@@ -265,7 +209,7 @@ function renderIndexedPoint({
           strokeWidth="0.5"
           paintOrder="stroke"
         >
-          {getPointDisplayLabel(measurement, pointIndex)}
+          {pointLabel}
         </text>
       )}
     </g>
@@ -635,15 +579,12 @@ export default function renderMeasurement({
             point,
             pointIndex,
             pointColor: displayColor,
-            showPointLabel:
-              shouldShowPointLabels(measurement.type) &&
-              shouldShowPelvicPointDisplayLabel(measurement, pointIndex) &&
-              ownsSharedPointLabel(
-                measurement,
-                pointIndex,
-                allMeasurements,
-                measurementIndex
-              ),
+            pointLabel: getMeasurementPointLabel(
+              measurement,
+              pointIndex,
+              allMeasurements,
+              measurementIndex
+            ),
             selectionState,
             hoverState,
             pointBindings,

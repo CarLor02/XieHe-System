@@ -6,3 +6,4 @@ export * from './shared/label-layout';
 export * from './ap/measurements';
 export * from './lateral/measurements';
 export * from './auxiliary';
+export * from './shared/point-label';

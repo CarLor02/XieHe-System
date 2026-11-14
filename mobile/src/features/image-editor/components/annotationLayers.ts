@@ -95,7 +95,7 @@ export type DrawingBounds = {
   width: number;
   height: number;
 };
-/** 动态 SVG 的位图只覆盖可见几何范围；文字与原生控制点不进入这个位图。 */
+/** 动态 SVG 的位图只覆盖可见几何范围；测量值文字与原生控制点独立绘制。 */
 export function geometryBounds(
   layer: AnnotationLayer,
   context: TransformContext,
@@ -134,10 +134,10 @@ export function geometryBounds(
   // 按小网格扩展边界，避免每移动一个像素都改变原生视图布局。
   const tile = 64;
   const x = Math.max(0, Math.floor((minX - 14) / tile) * tile),
-    y = Math.max(0, Math.floor((minY - 14) / tile) * tile);
+    y = Math.max(0, Math.floor((minY - 24) / tile) * tile);
   const right = Math.min(
     context.containerSize.width,
-    Math.ceil((maxX + 14) / tile) * tile
+    Math.ceil((maxX + 32) / tile) * tile
   );
   const bottom = Math.min(
     context.containerSize.height,

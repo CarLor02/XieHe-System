@@ -122,6 +122,7 @@ export function NativeControlPoints({
   showKeypoints,
   draftPoints,
   drawingPreview,
+  pointLabels,
 }: {
   snapshot: AnnotationEditorSnapshot;
   selection: EditorSelection | null;
@@ -131,6 +132,7 @@ export function NativeControlPoints({
   showKeypoints: boolean;
   draftPoints: Point[];
   drawingPreview: MeasurementData | null;
+  pointLabels: ReadonlyMap<string, (string | undefined)[]>;
 }) {
   const handles: Handle[] = [];
   const selected =
@@ -149,7 +151,10 @@ export function NativeControlPoints({
           key: `point:${measurement.id}:${index}`,
           point,
           radius: 5,
-          label: String(index + 1),
+          label:
+            measurement === drawingPreview
+              ? String(index + 1)
+              : pointLabels.get(measurement.id)?.[index],
         })
       );
     const cfh =

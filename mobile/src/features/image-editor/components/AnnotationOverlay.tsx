@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import { Circle, G, Line } from 'react-native-svg';
 import type { SharedValue } from 'react-native-reanimated';
 import {
@@ -9,6 +9,10 @@ import {
 import type { CalculationContext } from '@xiehe/imaging-core/measurements';
 import type { AnnotationEditorSnapshot } from '@xiehe/imaging-core/editor';
 import type { MeasurementData, Point } from '@xiehe/imaging-core/contracts';
+import {
+  getInteractivePointsCount,
+  getMeasurementPointLabel,
+} from '@xiehe/imaging-catalog/annotations';
 import type { EditorSelection } from '@/features/image-editor/application/dragAnnotation';
 import type { EditorReadoutStore } from '@/features/image-editor/application/EditorReadoutStore';
 import type { DragPreview, Viewport } from './interaction/canvasGestureModel';
@@ -26,6 +30,7 @@ import { AnnotationLabels } from './AnnotationLabels';
 interface LayerProps {
   layer: AnnotationLayer;
   pelvicOwnerId: string | null;
+  pointLabels: ReadonlyMap<string, (string | undefined)[]>;
   calculationContext: CalculationContext;
   context: TransformContext;
   viewport: SharedValue<Viewport>;
@@ -39,6 +44,7 @@ const GeometryLayer = memo(
   function GeometryLayer({
     layer,
     pelvicOwnerId,
+    pointLabels,
     calculationContext,
     context,
     viewport,
@@ -70,6 +76,7 @@ const GeometryLayer = memo(
               calculationContext,
               renderPelvicSharedGeometry: measurement.id === pelvicOwnerId,
             }}
+            pointLabels={pointLabels.get(measurement.id)}
             selected={
               !!selection &&
               'measurementId' in selection &&
@@ -140,6 +147,7 @@ const GeometryLayer = memo(
   (a, b) =>
     sameLayer(a.layer, b.layer) &&
     a.context === b.context &&
+    a.pointLabels === b.pointLabels &&
     a.pelvicOwnerId === b.pelvicOwnerId &&
     a.calculationContext.standardDistance ===
       b.calculationContext.standardDistance &&
@@ -187,12 +195,32 @@ export function AnnotationOverlay({
     standardDistancePoints: snapshot.standardDistancePoints,
     imageNaturalSize: context.imageNaturalSize,
   };
+  // 拖动只改变坐标。共享点标签的顺序和归属取自同一份基线，避免每帧重扫列表。
+  const definitions = (baseline ?? snapshot).measurements;
+  const pointLabels = useMemo(
+    () =>
+      new Map(
+        definitions.map((item, i) => [
+          item.id,
+          item.points
+            .slice(
+              0,
+              getInteractivePointsCount(item.type) ?? item.points.length
+            )
+            .map((_, index) =>
+              getMeasurementPointLabel(item, index, definitions, i)
+            ),
+        ])
+      ),
+    [definitions]
+  );
   const layers = partitionAnnotations(snapshot, baseline, selection);
   return (
     <>
       <GeometryLayer
         layer={layers.static}
         pelvicOwnerId={pelvicOwnerId}
+        pointLabels={pointLabels}
         calculationContext={calculationContext}
         context={context}
         selection={selection}
@@ -202,6 +230,7 @@ export function AnnotationOverlay({
       <GeometryLayer
         layer={layers.dynamic}
         pelvicOwnerId={pelvicOwnerId}
+        pointLabels={pointLabels}
         calculationContext={calculationContext}
         context={context}
         selection={selection}
@@ -228,6 +257,7 @@ export function AnnotationOverlay({
         showKeypoints={showKeypoints}
         draftPoints={draftPoints}
         drawingPreview={preview}
+        pointLabels={pointLabels}
       />
     </>
   );
