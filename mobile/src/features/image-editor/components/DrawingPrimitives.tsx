@@ -1,12 +1,4 @@
-import {
-  Circle,
-  Ellipse,
-  G,
-  Line,
-  Path,
-  Polygon,
-  Text,
-} from 'react-native-svg';
+import { Circle, Ellipse, G, Line, Path, Polygon } from 'react-native-svg';
 import {
   angleArcPath,
   type DrawingPrimitive,
@@ -15,11 +7,9 @@ import {
 export function DrawingPrimitives({
   primitives,
   color,
-  textOnly = false,
 }: {
   primitives: DrawingPrimitive[];
   color: string;
-  textOnly?: boolean;
 }) {
   const resolveColor = (value: string | undefined, fallback: string) =>
     value === 'currentColor' ? color : (value ?? fallback);
@@ -32,24 +22,9 @@ export function DrawingPrimitives({
               key={index}
               primitives={p.children}
               color={color}
-              textOnly={textOnly}
             />
           );
-        if (p.kind === 'text')
-          return textOnly ? (
-            <Text
-              key={index}
-              x={p.point.x}
-              y={p.point.y}
-              fill={resolveColor(p.fill, color)}
-              fontSize={p.fontSize}
-              fontWeight="500"
-              textAnchor={p.text === 'CFH' ? 'start' : 'middle'}
-            >
-              {p.text}
-            </Text>
-          ) : null;
-        if (textOnly) return null;
+        if (p.kind === 'text') return null;
         const style = {
           stroke: resolveColor(p.stroke, color),
           strokeWidth: p.strokeWidth ?? 2,

@@ -63,7 +63,9 @@ function renderLabel(imagePosition = { x: 0, y: 0 }, value = '100mm') {
       showKeypoints: false,
     })
   );
-  return { x: labels[0].x, y: labels[0].y };
+  return labels[0]
+    ? { x: labels[0].x + imagePosition.x, y: labels[0].y + imagePosition.y }
+    : null;
 }
 
 describe('measurement label anchoring', () => {
@@ -72,14 +74,16 @@ describe('measurement label anchoring', () => {
   });
 
   it.each([
-    { x: -500, y: 900 },
-    { x: 500, y: -900 },
-    { x: 120, y: 50 },
+    { x: -30, y: 50 },
+    { x: 30, y: -20 },
   ])('moves with the image without snapping to canvas edges at %j', offset => {
-    const before = renderLabel();
-    const after = renderLabel(offset);
+    const before = renderLabel()!;
+    const after = renderLabel(offset)!;
     expect(after.x - before.x).toBeCloseTo(offset.x, 8);
     expect(after.y - before.y).toBeCloseTo(offset.y, 8);
+  });
+  it('omits the bitmap when all label extents leave the cache', () => {
+    expect(renderLabel({ x: 0, y: -1000 })).toBeNull();
   });
 
   it('keeps its anchor when the displayed value becomes wider near an edge', () => {

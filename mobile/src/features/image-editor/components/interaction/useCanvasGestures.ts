@@ -11,7 +11,7 @@ import { useFrameCallback, useSharedValue } from 'react-native-reanimated';
 import type { TransformContext } from '@xiehe/imaging-core/canvas';
 import type { ImageSize, Point } from '@xiehe/imaging-core/contracts';
 import type { ImageEditorSession } from '@/features/image-editor/application/ImageEditorSession';
-import { needsViewportRedraw } from './viewportCache';
+import { viewportRedrawReason } from './viewportCache';
 import { CanvasInteraction } from './CanvasInteraction';
 import {
   emptyMailbox,
@@ -144,11 +144,69 @@ export function useCanvasGestures(
 
   const committedProjection = useSharedValue(initialViewport);
   const projectionPending = useSharedValue(false);
+  const refreshProjection = useCallback(() => {
+    // JS 恢复时取最新位置。忙碌期间排队的只是一次刷新机会，不携带过时的坐标。
+    const live = viewport.get();
+    const settled = gestureState.get().phase === 'idle';
+    const reason = viewportRedrawReason(
+      committedProjection.get(),
+      live,
+      container,
+      settled
+    );
+    if (reason) {
+      // 供原生帧追踪关联缓存刷新；同名标记不在 JS 时间线上累积。
+      const name = `annotation-cache-${reason}`;
+      performance.mark(name);
+      performance.clearMarks(name);
+      setRenderedViewport(live);
+    } else {
+      projectionPending.set(false);
+    }
+  }, [
+    viewport,
+    gestureState,
+    committedProjection,
+    projectionPending,
+    container,
+  ]);
+
+  const settleProjection = useCallback(() => {
+    'worklet';
+    if (
+      !projectionPending.get() &&
+      viewportRedrawReason(
+        committedProjection.get(),
+        viewport.get(),
+        container,
+        true
+      )
+    ) {
+      projectionPending.set(true);
+      scheduleOnRN(refreshProjection);
+    }
+  }, [
+    committedProjection,
+    viewport,
+    container,
+    projectionPending,
+    refreshProjection,
+  ]);
+
   useLayoutEffect(() => {
-    // React 已提交逆变换及新缓存边界后，才允许下一次重投影请求。
-    committedProjection.set(renderedViewport);
-    projectionPending.set(false);
-  }, [renderedViewport, committedProjection, projectionPending]);
+    scheduleOnUI((committed: Viewport) => {
+      committedProjection.set(committed);
+      projectionPending.set(false);
+      // 请求发出后可能已松手。确认提交后补上最终字号，避免停在旧倍率。
+      if (gestureState.get().phase === 'idle') settleProjection();
+    }, renderedViewport);
+  }, [
+    renderedViewport,
+    committedProjection,
+    projectionPending,
+    gestureState,
+    settleProjection,
+  ]);
 
   // 一个 UI 显示帧最多提交一次，且至多一个 JS 计算在途；JS 忙时仅保留最新坐标。
   useFrameCallback(
@@ -163,10 +221,10 @@ export function useCanvasGestures(
         const current = viewport.get();
         if (
           !projectionPending.get() &&
-          needsViewportRedraw(committedProjection.get(), current, container)
+          viewportRedrawReason(committedProjection.get(), current, container)
         ) {
           projectionPending.set(true);
-          scheduleOnRN(setRenderedViewport, current);
+          scheduleOnRN(refreshProjection);
         }
         return;
       }
@@ -183,29 +241,33 @@ export function useCanvasGestures(
       move,
       committedProjection,
       projectionPending,
+      refreshProjection,
       container,
       viewport,
     ])
   );
   const finish = useCallback(
-    (id: number, sample: PanSample, current: Viewport) => {
-      const finalViewport = interaction.end(id, sample) ?? current;
+    (id: number, sample: PanSample, wasPending: boolean) => {
+      const finalViewport = interaction.end(id, sample);
       setCompletedGesture(id);
-      setRenderedViewport(finalViewport);
-      scheduleOnUI(
-        (gestureId: number, final: Viewport) => {
-          if (
-            gestureState.get().id === gestureId &&
-            gestureState.get().phase === 'idle'
-          ) {
+      // 只有在命中结果返回前就松手，UI 才可能缺少最后的平移。
+      if (wasPending && finalViewport) {
+        scheduleOnUI(
+          (gestureId: number, final: Viewport) => {
+            if (
+              gestureState.get().id !== gestureId ||
+              gestureState.get().phase !== 'idle'
+            )
+              return;
             viewport.set(final);
-          }
-        },
-        id,
-        finalViewport
-      );
+            settleProjection();
+          },
+          id,
+          finalViewport
+        );
+      }
     },
-    [gestureState, interaction, viewport]
+    [gestureState, interaction, viewport, settleProjection]
   );
   const cancel = useCallback(
     (id: number) => {
@@ -217,10 +279,6 @@ export function useCanvasGestures(
     (point: Point, current: Viewport) =>
       interaction.tap(point, context(current)),
     [context, interaction]
-  );
-  const commitViewport = useCallback(
-    (current: Viewport) => setRenderedViewport(current),
-    []
   );
   useLayoutEffect(() => {
     // 撤销/取消绘图也可由画布外触发，不能让 UI 预览继续跟随已失效的事务。
@@ -318,7 +376,8 @@ export function useCanvasGestures(
           phase: 'idle',
           mailbox: emptyMailbox(),
         });
-        scheduleOnRN(finish, state.id, event, viewport.get());
+        scheduleOnRN(finish, state.id, event, state.phase === 'pending');
+        if (state.plan?.kind === 'viewport') settleProjection();
       })
       .onFinalize((_event, success) => {
         const phase = gestureState.get().phase;
@@ -336,6 +395,7 @@ export function useCanvasGestures(
         });
         gestureState.set({
           ...gestureState.get(),
+          id: gestureState.get().id + 1,
           phase: 'pinch',
         });
       })
@@ -366,7 +426,7 @@ export function useCanvasGestures(
           ...gestureState.get(),
           phase: 'idle',
         });
-        scheduleOnRN(commitViewport, viewport.get());
+        settleProjection();
       });
     const tapGesture = Gesture.Tap()
       .maxDistance(8)
@@ -397,7 +457,7 @@ export function useCanvasGestures(
     applyPreview,
     begin,
     cancel,
-    commitViewport,
+    settleProjection,
     container.height,
     container.width,
     finish,
@@ -417,11 +477,15 @@ export function useCanvasGestures(
           ...current,
           imageScale: Math.max(0.5, Math.min(8, current.imageScale * factor)),
         };
+        gestureState.set({
+          ...gestureState.get(),
+          id: gestureState.get().id + 1,
+        });
         viewport.set(next);
-        scheduleOnRN(commitViewport, next);
+        settleProjection();
       });
     },
-    [commitViewport, gestureState, viewport]
+    [settleProjection, gestureState, viewport]
   );
   return {
     gestures,

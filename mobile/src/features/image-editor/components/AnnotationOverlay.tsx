@@ -37,7 +37,7 @@ interface LayerProps {
   viewport: SharedValue<Viewport>;
   selection: EditorSelection | null;
   showKeypoints: boolean;
-  bounded?: boolean;
+
   preview?: MeasurementData | null;
 }
 
@@ -51,41 +51,63 @@ const GeometryLayer = memo(
     viewport,
     selection,
     showKeypoints,
-    bounded = false,
     preview = null,
   }: LayerProps) {
-    if (
-      !layer.measurements.length &&
-      (!showKeypoints || !layer.keypoints.length) &&
-      !layer.calibration.length &&
-      !preview
-    )
-      return null;
-    const drawings = layer.measurements.map(measurement => ({
-      measurement,
-      primitives: measurementGeometry(measurement, context, {
-        calculationContext,
-        renderPelvicSharedGeometry: measurement.id === pelvicOwnerId,
+    // 同倍率平移只移动裁剪窗口。图元、编号和测量规则都在零平移坐标系中复用。
+    const { imageScale, imageNaturalSize, containerSize } = context;
+    const projection = useMemo(
+      () => ({
+        imageScale,
+        imageNaturalSize,
+        containerSize,
+        imagePosition: { x: 0, y: 0 },
       }),
-    }));
+      [imageScale, imageNaturalSize, containerSize]
+    );
+    const drawings = useMemo(
+      () =>
+        layer.measurements.map(measurement => ({
+          measurement,
+          primitives: measurementGeometry(measurement, projection, {
+            calculationContext,
+            renderPelvicSharedGeometry: measurement.id === pelvicOwnerId,
+          }),
+        })),
+      [layer.measurements, projection, calculationContext, pelvicOwnerId]
+    );
     const previewGeometry = preview
-      ? measurementGeometry(preview, context)
+      ? measurementGeometry(preview, projection)
       : null;
-    const bounds = bounded
-      ? geometryBounds(layer, context, showKeypoints, preview, [
-          ...drawings.map(drawing => drawing.primitives),
-          ...(previewGeometry ? [previewGeometry] : []),
-        ])
-      : undefined;
-    if (bounds === null) return null;
-    const project = (point: Point) => imageToScreen(point, context);
+    const bounds = geometryBounds(
+      layer,
+      projection,
+      showKeypoints,
+      preview,
+      [
+        ...drawings.map(drawing => drawing.primitives),
+        ...(previewGeometry ? [previewGeometry] : []),
+      ],
+      context.imagePosition,
+      layer.measurements.reduce(
+        (max, item) =>
+          Math.max(
+            max,
+            ...(pointLabels.get(item.id) ?? []).map(
+              label => 8 + (label?.length ?? 0) * 16
+            )
+          ),
+        32
+      )
+    );
+    if (!bounds) return null;
+    const project = (point: Point) => imageToScreen(point, projection);
     return (
-      <SvgLayer context={context} viewport={viewport} bounds={bounds}>
+      <SvgLayer context={projection} viewport={viewport} bounds={bounds}>
         {drawings.map(({ measurement, primitives }) => (
           <MeasurementDrawing
             key={measurement.id}
             measurement={measurement}
-            context={context}
+            context={projection}
             geometry={primitives}
             pointLabels={pointLabels.get(measurement.id)}
             selected={
@@ -149,7 +171,7 @@ const GeometryLayer = memo(
           <MeasurementDrawing
             geometry={previewGeometry}
             measurement={preview}
-            context={context}
+            context={projection}
             selected
           />
         )}
@@ -168,7 +190,6 @@ const GeometryLayer = memo(
     a.viewport === b.viewport &&
     a.selection === b.selection &&
     a.showKeypoints === b.showKeypoints &&
-    a.bounded === b.bounded &&
     a.preview === b.preview
 );
 
@@ -202,11 +223,18 @@ export function AnnotationOverlay({
     snapshot.measurements,
     () => false
   );
-  const calculationContext: CalculationContext = {
-    standardDistance: snapshot.standardDistance,
-    standardDistancePoints: snapshot.standardDistancePoints,
-    imageNaturalSize: context.imageNaturalSize,
-  };
+  const calculationContext = useMemo<CalculationContext>(
+    () => ({
+      standardDistance: snapshot.standardDistance,
+      standardDistancePoints: snapshot.standardDistancePoints,
+      imageNaturalSize: context.imageNaturalSize,
+    }),
+    [
+      snapshot.standardDistance,
+      snapshot.standardDistancePoints,
+      context.imageNaturalSize,
+    ]
+  );
   // 拖动只改变坐标。共享点标签的顺序和归属取自同一份基线，避免每帧重扫列表。
   const definitions = (baseline ?? snapshot).measurements;
   const pointLabels = useMemo(
@@ -248,7 +276,6 @@ export function AnnotationOverlay({
         selection={selection}
         viewport={viewport}
         showKeypoints={showKeypoints}
-        bounded
         preview={preview}
       />
       {showLabels && (

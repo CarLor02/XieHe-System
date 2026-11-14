@@ -165,21 +165,19 @@ describe('pinch viewport lifecycle', () => {
       scale,
     });
     pinch('onStart', sample(1));
-    pinch('onUpdate', sample(1.2));
+    pinch('onUpdate', sample(1.5));
     runtime.frame();
     flushRN();
     expect(canvas.renderedViewport).toEqual(canvas.viewport.get());
-    expect(canvas.renderedViewport.imageScale).toBe(1.2);
+    expect(canvas.renderedViewport.imageScale).toBe(1.5);
 
-    for (const scale of [1.4, 1.6, 2]) {
+    for (const scale of [2.3, 2.5, 3]) {
       pinch('onUpdate', sample(scale));
       runtime.frame();
     }
     expect(runtime.rnQueue).toHaveLength(1);
     flushRN();
-    runtime.frame();
-    flushRN();
-    expect(canvas.renderedViewport.imageScale).toBe(2);
+    expect(canvas.renderedViewport.imageScale).toBe(3);
     pinch('onUpdate', sample(2.2));
     runtime.frame();
     pinch('onUpdate', sample(2.4));
@@ -220,6 +218,54 @@ describe('pinch viewport lifecycle', () => {
       expect(canvas.viewport.get()).toEqual(lastValid);
     }
   );
+
+  it.each([false, true])(
+    'does not roll back a newer pinch when a pan finishes late (pending=%s)',
+    pending => {
+      const pan = {
+        x: 40,
+        y: 30,
+        translationX: 20,
+        translationY: 10,
+        numberOfPointers: 1,
+      };
+      runtime.handlers.pan.onStart(pan);
+      if (!pending) flushRN();
+      runtime.handlers.pan.onEnd(pan, true);
+      pinch('onStart', {
+        focalX: 200,
+        focalY: 400,
+        scale: 1,
+        numberOfPointers: 2,
+      });
+      pinch('onUpdate', {
+        focalX: 202,
+        focalY: 404,
+        scale: 2,
+        numberOfPointers: 2,
+      });
+      pinch('onFinalize');
+      const end = canvas.viewport.get();
+      flushRN();
+      expect(canvas.viewport.get()).toEqual(end);
+      expect(canvas.renderedViewport).toEqual(end);
+    }
+  );
+  it('retains a covered projection after a short pan, including late hit testing', () => {
+    const initial = canvas.renderedViewport;
+    const pan = {
+      x: 40,
+      y: 30,
+      translationX: 20,
+      translationY: 10,
+      numberOfPointers: 1,
+    };
+    runtime.handlers.pan.onStart(pan);
+    runtime.handlers.pan.onEnd(pan, true);
+    flushRN();
+    expect(canvas.viewport.get().imagePosition).toEqual({ x: 20, y: 10 });
+    expect(canvas.renderedViewport).toBe(initial);
+  });
 
   it('keeps two-finger translation and starts the next pinch from the committed view', () => {
     pinch('onStart', {

@@ -102,7 +102,9 @@ export function geometryBounds(
   context: TransformContext,
   showKeypoints: boolean,
   preview: MeasurementData | null,
-  drawings: readonly DrawingPrimitive[][]
+  drawings: readonly DrawingPrimitive[][],
+  cacheOffset: Point = { x: 0, y: 0 },
+  labelWidth = 32
 ): DrawingBounds | null {
   const project = (point: Point) => imageToScreen(point, context);
   const points: Point[] = layer.calibration.map(project);
@@ -116,6 +118,15 @@ export function geometryBounds(
   }
   for (const primitives of drawings)
     points.push(...drawingBoundsPoints(primitives));
+  return clippedDrawingBounds(points, context, cacheOffset, labelWidth);
+}
+
+export function clippedDrawingBounds(
+  points: Point[],
+  context: TransformContext,
+  cacheOffset: Point,
+  rightPadding: number
+): DrawingBounds | null {
   if (!points.length || !context.containerSize) return null;
   let minX = Infinity,
     minY = Infinity,
@@ -131,14 +142,20 @@ export function geometryBounds(
   // 按小网格扩展边界，避免每移动一个像素都改变原生视图布局。
   const tile = 64;
   const margin = cacheMargin(context.containerSize);
-  const x = Math.max(-margin, Math.floor((minX - 14) / tile) * tile),
-    y = Math.max(-margin, Math.floor((minY - 24) / tile) * tile);
+  const x = Math.max(
+      -margin - cacheOffset.x,
+      Math.floor((minX - 14) / tile) * tile
+    ),
+    y = Math.max(
+      -margin - cacheOffset.y,
+      Math.floor((minY - 24) / tile) * tile
+    );
   const right = Math.min(
-    context.containerSize.width + margin,
-    Math.ceil((maxX + 32) / tile) * tile
+    context.containerSize.width + margin - cacheOffset.x,
+    Math.ceil((maxX + rightPadding) / tile) * tile
   );
   const bottom = Math.min(
-    context.containerSize.height + margin,
+    context.containerSize.height + margin - cacheOffset.y,
     Math.ceil((maxY + 14) / tile) * tile
   );
   return right > x && bottom > y

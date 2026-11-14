@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { SharedValue } from 'react-native-reanimated';
 import { imageToScreen } from '@xiehe/imaging-core/canvas';
 import type { Viewport } from './interaction/canvasGestureModel';
-import { needsViewportRedraw } from './interaction/viewportCache';
+import { viewportRedrawReason } from './interaction/viewportCache';
 import { SvgLayer } from './SvgLayer';
 
 type Transform = {
@@ -131,10 +131,12 @@ describe('composited annotation viewport', () => {
     expect(style.left + width).toBeGreaterThan(size.width);
     expect(style.top + height).toBeGreaterThan(size.height);
     const pan = (x: number) => ({ ...base, imagePosition: { x, y: 0 } });
-    expect(needsViewportRedraw(base, pan(4), size)).toBe(false);
-    expect(needsViewportRedraw(base, pan(-style.left * 0.8), size)).toBe(true);
-    expect(needsViewportRedraw(base, { ...base, imageScale: 0.5 }, size)).toBe(
-      true
+    expect(viewportRedrawReason(base, pan(4), size)).toBeNull();
+    expect(viewportRedrawReason(base, pan(-style.left * 0.8), size)).toBe(
+      'coverage'
+    );
+    expect(viewportRedrawReason(base, { ...base, imageScale: 0.5 }, size)).toBe(
+      'quality'
     );
   });
 });
