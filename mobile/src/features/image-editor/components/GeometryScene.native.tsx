@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { StyleSheet } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
 import { useDerivedValue } from 'react-native-reanimated';
 import {
   Canvas,
@@ -18,7 +18,7 @@ import {
   angleArcPath,
   type DrawingPrimitive,
 } from '@xiehe/imaging-core/canvas';
-import type { DragGeometryProps } from './DragGeometry';
+import type { GeometryPictureProps, GeometrySceneProps } from './GeometryScene';
 
 function drawPrimitive(
   canvas: SkCanvas,
@@ -75,7 +75,7 @@ function pathFor(p: Exclude<DrawingPrimitive, { kind: 'text' | 'vertebra' }>) {
 
 function drawOrdinals(
   canvas: SkCanvas,
-  drawing: DragGeometryProps['drawings'][number],
+  drawing: GeometryPictureProps['drawings'][number],
   font: SkFont,
   paint: SkPaint
 ) {
@@ -87,23 +87,20 @@ function drawOrdinals(
     canvas.drawText(text, point.x, point.y, paint, font);
 }
 
-export function DragGeometry({
-  drawings,
-  bounds,
-  context,
-  viewport,
-}: DragGeometryProps) {
+export function GeometryPicture({ drawings, bounds }: GeometryPictureProps) {
   const font = useMemo(
-    () => matchFont({ fontSize: 12, fontWeight: 'bold' }),
+    () =>
+      matchFont({
+        // Skia 只在 Apple 平台解析 System 别名，Android 使用系统注册的无衬线字体。
+        fontFamily: Platform.OS === 'android' ? 'sans-serif' : 'System',
+        fontSize: 12,
+        fontWeight: Platform.OS === 'android' ? 'normal' : 'bold',
+      }),
     []
   );
-  const { imageScale, containerSize } = context;
-  const width = containerSize?.width ?? 0,
-    height = containerSize?.height ?? 0;
   // 图元在零平移的投影坐标中。录制范围包含画布外的负坐标，平移后仍可显示它们。
   const picture = useMemo(
     () =>
-      bounds &&
       createPicture(canvas => {
         const paint = Skia.Paint();
         for (const drawing of drawings) {
@@ -115,9 +112,19 @@ export function DragGeometry({
       }, bounds),
     [drawings, bounds, font]
   );
-  const visible = picture !== null;
+  return <Picture picture={picture} />;
+}
+
+/** 所有几何只占一个原生表面，起拖时移动的是绘制指令，不再重画整张静态 SVG 位图。 */
+export function GeometryScene({
+  context,
+  viewport,
+  children,
+}: GeometrySceneProps) {
+  const { imageScale, containerSize } = context;
+  const width = containerSize?.width ?? 0,
+    height = containerSize?.height ?? 0;
   const transform = useDerivedValue<Transforms3d>(() => {
-    if (!visible) return [];
     const live = viewport.get();
     const ratio = live.imageScale / imageScale;
     return [
@@ -126,18 +133,13 @@ export function DragGeometry({
       { scale: ratio },
     ];
   });
-  // 空闲时清空图元并移除 Group。保留同一个原生表面，松手和下一次起拖都不必重建纹理。
   return (
     <Canvas
       pointerEvents="none"
       style={StyleSheet.absoluteFill}
       colorSpace="srgb"
     >
-      {picture && (
-        <Group transform={transform}>
-          <Picture picture={picture} />
-        </Group>
-      )}
+      <Group transform={transform}>{children}</Group>
     </Canvas>
   );
 }

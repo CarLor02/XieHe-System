@@ -1,5 +1,4 @@
 import { memo, useMemo } from 'react';
-import { G, Text } from 'react-native-svg';
 import type { SharedValue } from 'react-native-reanimated';
 import {
   getBilateralPelvicGeometryOwnerId,
@@ -22,10 +21,8 @@ import {
   type AnnotationLayer,
 } from './annotationLayers';
 import { measurementGeometry } from './measurementGeometry';
-import { DrawingPrimitives } from './DrawingPrimitives';
-import { DragGeometry } from './DragGeometry';
+import { GeometryScene, GeometryPicture } from './GeometryScene';
 import { measurementDrawing, landmarkDrawings } from './geometryDrawing';
-import { SvgLayer } from './SvgLayer';
 import { NativeControlPoints } from './NativeControlPoints';
 import { AnnotationLabels } from './AnnotationLabels';
 
@@ -39,7 +36,6 @@ interface LayerProps {
   selection: EditorSelection | null;
   showKeypoints: boolean;
 
-  dynamic?: boolean;
   preview?: MeasurementData | null;
 }
 
@@ -53,7 +49,6 @@ const GeometryLayer = memo(
     viewport,
     selection,
     showKeypoints,
-    dynamic = false,
     preview = null,
   }: LayerProps) {
     // 同倍率平移只移动裁剪窗口。图元、编号和测量规则都在零平移坐标系中复用。
@@ -121,42 +116,17 @@ const GeometryLayer = memo(
         32
       )
     );
-    if (dynamic && DragGeometry) {
-      return (
-        <DragGeometry
-          drawings={drawings}
-          bounds={bounds}
-          context={projection}
-          viewport={viewport}
-        />
-      );
-    }
-    if (!bounds) return null;
-    return (
-      <SvgLayer context={projection} viewport={viewport} bounds={bounds}>
-        {drawings.map(({ key, color, primitives, ordinals }) => (
-          <G key={key}>
-            <DrawingPrimitives primitives={primitives} color={color} />
-            {ordinals?.map(({ point, text }, j) => (
-              <Text
-                key={j}
-                x={point.x}
-                y={point.y}
-                fill={color}
-                fontSize={12}
-                fontWeight="bold"
-              >
-                {text}
-              </Text>
-            ))}
-          </G>
-        ))}
-      </SvgLayer>
-    );
+    return bounds ? (
+      <GeometryPicture
+        drawings={drawings}
+        bounds={bounds}
+        context={projection}
+        viewport={viewport}
+      />
+    ) : null;
   },
   (a, b) =>
     sameLayer(a.layer, b.layer) &&
-    a.dynamic === b.dynamic &&
     a.context === b.context &&
     a.pointLabels === b.pointLabels &&
     a.pelvicOwnerId === b.pelvicOwnerId &&
@@ -170,7 +140,7 @@ const GeometryLayer = memo(
     a.preview === b.preview
 );
 
-/** 拖动时只重画联动的几何，静态图层继续使用已有位图。 */
+/** 静态、动态两份图元独立缓存，使用同一视口。 */
 export function AnnotationOverlay({
   snapshot,
   baseline,
@@ -237,28 +207,29 @@ export function AnnotationOverlay({
   );
   return (
     <>
-      <GeometryLayer
-        layer={layers.static}
-        pelvicOwnerId={pelvicOwnerId}
-        pointLabels={pointLabels}
-        calculationContext={calculationContext}
-        context={context}
-        selection={selection}
-        viewport={viewport}
-        showKeypoints={showKeypoints}
-      />
-      <GeometryLayer
-        dynamic
-        layer={layers.dynamic}
-        pelvicOwnerId={pelvicOwnerId}
-        pointLabels={pointLabels}
-        calculationContext={calculationContext}
-        context={context}
-        selection={selection}
-        viewport={viewport}
-        showKeypoints={showKeypoints}
-        preview={preview}
-      />
+      <GeometryScene context={context} viewport={viewport}>
+        <GeometryLayer
+          layer={layers.static}
+          pelvicOwnerId={pelvicOwnerId}
+          pointLabels={pointLabels}
+          calculationContext={calculationContext}
+          context={context}
+          selection={selection}
+          viewport={viewport}
+          showKeypoints={showKeypoints}
+        />
+        <GeometryLayer
+          layer={layers.dynamic}
+          pelvicOwnerId={pelvicOwnerId}
+          pointLabels={pointLabels}
+          calculationContext={calculationContext}
+          context={context}
+          selection={selection}
+          viewport={viewport}
+          showKeypoints={showKeypoints}
+          preview={preview}
+        />
+      </GeometryScene>
       {showLabels && (
         <AnnotationLabels
           readouts={readouts}
