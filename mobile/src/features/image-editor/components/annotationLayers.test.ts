@@ -12,10 +12,11 @@ import {
 import { dragAnnotation } from '@/features/image-editor/application/dragAnnotation';
 import {
   emptyLayer,
-  geometryBounds,
+  geometryBounds as boundsOfDrawings,
   partitionAnnotations,
   sameLayer,
 } from './annotationLayers';
+import { measurementGeometry } from './measurementGeometry';
 import { projectControlPoint } from './interaction/canvasGestureModel';
 
 const context = {
@@ -24,6 +25,22 @@ const context = {
   imageScale: 1,
   imagePosition: { x: 0, y: 0 },
 };
+function geometryBounds(
+  ...[layer, ctx, showKeypoints, preview]: [
+    Parameters<typeof boundsOfDrawings>[0],
+    typeof context,
+    boolean,
+    null,
+  ]
+) {
+  return boundsOfDrawings(
+    layer,
+    ctx,
+    showKeypoints,
+    preview,
+    layer.measurements.map(item => measurementGeometry(item, ctx))
+  );
+}
 function measurement(id: string): MeasurementData {
   return {
     id,

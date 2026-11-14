@@ -3,14 +3,13 @@ import { Circle, G, Text } from 'react-native-svg';
 import {
   imageToScreen,
   type TransformContext,
-  type DrawingContext,
+  type DrawingPrimitive,
 } from '@xiehe/imaging-core/canvas';
 import {
   getColorForType,
   getInteractivePointsCount,
 } from '@xiehe/imaging-catalog/annotations';
 import type { MeasurementData } from '@xiehe/imaging-core/contracts';
-import { measurementGeometry } from './measurementGeometry';
 import { DrawingPrimitives } from './DrawingPrimitives';
 
 export const MeasurementDrawing = memo(function MeasurementDrawing({
@@ -18,16 +17,15 @@ export const MeasurementDrawing = memo(function MeasurementDrawing({
   context,
   selected,
   pointLabels,
-  drawingContext,
+  geometry,
 }: {
   measurement: MeasurementData;
   context: TransformContext;
   selected: boolean;
   pointLabels?: readonly (string | undefined)[];
-  drawingContext?: DrawingContext;
+  geometry: DrawingPrimitive[];
 }) {
   const color = selected ? '#FBBF24' : getColorForType(measurement.type);
-  const geometry = measurementGeometry(measurement, context, drawingContext);
   const interactive =
     getInteractivePointsCount(measurement.type) ?? measurement.points.length;
   return (

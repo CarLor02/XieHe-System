@@ -55,7 +55,8 @@ it('keeps angle arcs inside the dynamic SVG bounds at mobile scale', () => {
     { measurements: [measurement], keypoints: [], calibration: [] },
     context,
     false,
-    null
+    null,
+    [measurementGeometry(measurement, context)]
   )!;
   const geometry = measurementGeometry(measurement, context);
   expect(geometry.some(p => p.kind === 'arc')).toBe(true);

@@ -11,6 +11,7 @@ import { useFrameCallback, useSharedValue } from 'react-native-reanimated';
 import type { TransformContext } from '@xiehe/imaging-core/canvas';
 import type { ImageSize, Point } from '@xiehe/imaging-core/contracts';
 import type { ImageEditorSession } from '@/features/image-editor/application/ImageEditorSession';
+import { needsViewportRedraw } from './viewportCache';
 import { CanvasInteraction } from './CanvasInteraction';
 import {
   emptyMailbox,
@@ -141,15 +142,13 @@ export function useCanvasGestures(
     [gestureState, interaction]
   );
 
-  const projectingPinch = useSharedValue(false);
-  const lastPinchProjection = useSharedValue<Viewport | null>(null);
-  const projectPinch = useCallback(
-    (current: Viewport) => {
-      setRenderedViewport(current);
-      projectingPinch.set(false);
-    },
-    [projectingPinch]
-  );
+  const committedProjection = useSharedValue(initialViewport);
+  const projectionPending = useSharedValue(false);
+  useLayoutEffect(() => {
+    // React 已提交逆变换及新缓存边界后，才允许下一次重投影请求。
+    committedProjection.set(renderedViewport);
+    projectionPending.set(false);
+  }, [renderedViewport, committedProjection, projectionPending]);
 
   // 一个 UI 显示帧最多提交一次，且至多一个 JS 计算在途；JS 忙时仅保留最新坐标。
   useFrameCallback(
@@ -157,29 +156,21 @@ export function useCanvasGestures(
       'worklet';
 
       const state = gestureState.get();
-      if (state.phase === 'pinch') {
-        // 图层矩阵即时跟随手势；屏幕尺寸的文字、点和箭头也需在缩放期间重新投影。
-        // JS 忙时保留最新视口，避免积压过时的缩放事件。
+      if (
+        state.phase === 'pinch' ||
+        (state.phase === 'pan' && state.plan?.kind === 'viewport')
+      ) {
         const current = viewport.get();
-        const last = lastPinchProjection.get();
         if (
-          !projectingPinch.get() &&
-          (last?.imageScale !== current.imageScale ||
-            last.imagePosition.x !== current.imagePosition.x ||
-            last.imagePosition.y !== current.imagePosition.y)
+          !projectionPending.get() &&
+          needsViewportRedraw(committedProjection.get(), current, container)
         ) {
-          lastPinchProjection.set(current);
-          projectingPinch.set(true);
-          scheduleOnRN(projectPinch, current);
+          projectionPending.set(true);
+          scheduleOnRN(setRenderedViewport, current);
         }
         return;
       }
-      if (
-        state.phase !== 'pan' ||
-        !state.plan ||
-        state.plan.kind === 'viewport'
-      )
-        return;
+      if (state.phase !== 'pan' || !state.plan) return;
       const mailbox = takeMove(state.mailbox);
       if (!mailbox) return;
       gestureState.set({
@@ -190,9 +181,9 @@ export function useCanvasGestures(
     }, [
       gestureState,
       move,
-      lastPinchProjection,
-      projectingPinch,
-      projectPinch,
+      committedProjection,
+      projectionPending,
+      container,
       viewport,
     ])
   );

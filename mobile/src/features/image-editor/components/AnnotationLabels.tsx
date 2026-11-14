@@ -41,7 +41,19 @@ export const AnnotationLabels = memo(function AnnotationLabels({
     readouts.getState
   );
   const snapshot = state.history?.present;
-  if (!snapshot) return null;
+  if (
+    !snapshot ||
+    (!snapshot.measurements.some(item => item.points.length) &&
+      snapshot.standardDistancePoints.length !== 2 &&
+      !(
+        showKeypoints &&
+        snapshot.keypoints.some(
+          item =>
+            selection?.kind !== 'keypoint' || selection.keypointId !== item.id
+        )
+      ))
+  )
+    return null;
   const pelvicOwnerId = getBilateralPelvicGeometryOwnerId(
     snapshot.measurements,
     () => false

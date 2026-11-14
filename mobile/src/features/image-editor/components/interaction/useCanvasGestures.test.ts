@@ -136,6 +136,27 @@ describe('pinch viewport lifecycle', () => {
     container.remove();
   });
 
+  it('reuses the projection for small two-finger translations and scale changes', () => {
+    const sample = (i: number) => ({
+      focalX: 160 + i / 4,
+      focalY: 320,
+      numberOfPointers: 2,
+      scale: 1 + i / 1200,
+    });
+    pinch('onStart', sample(0));
+    const start = canvas.renderedViewport;
+    for (let i = 1; i <= 60; i++) {
+      pinch('onUpdate', sample(i));
+      runtime.frame();
+      expect(runtime.rnQueue).toHaveLength(0);
+    }
+    expect(canvas.viewport.get().imageScale).toBe(1.05);
+    expect(canvas.renderedViewport).toBe(start);
+    pinch('onFinalize');
+    flushRN();
+    expect(canvas.renderedViewport).toEqual(canvas.viewport.get());
+  });
+
   it('reprojects during the pinch and skips stale samples when JS is busy', () => {
     const sample = (scale: number) => ({
       focalX: 130,

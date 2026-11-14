@@ -128,25 +128,3 @@ export function pinchViewport(
     },
   };
 }
-
-/** SVG 内部变换保持根视窗固定，平移时不会裁掉原本在屏幕外的标注。 */
-export function viewportMatrix(
-  current: Viewport,
-  rendered: Viewport,
-  center: Point
-): [number, number, number, number, number, number] {
-  'worklet';
-  const scale = current.imageScale / rendered.imageScale;
-  return [
-    scale,
-    0,
-    0,
-    scale,
-    center.x * (1 - scale) +
-      current.imagePosition.x -
-      rendered.imagePosition.x * scale,
-    center.y * (1 - scale) +
-      current.imagePosition.y -
-      rendered.imagePosition.y * scale,
-  ];
-}

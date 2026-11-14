@@ -3,7 +3,6 @@ import {
   calculatePinchViewport,
   constrainDraggedMeasurementPoint,
   getMeasurementPointDragConstraint,
-  imageToScreen,
 } from '@xiehe/imaging-core/canvas';
 import {
   emptyMailbox,
@@ -11,7 +10,6 @@ import {
   pinchViewport,
   previewPoint,
   takeMove,
-  viewportMatrix,
 } from './canvasGestureModel';
 
 describe('native canvas frame transport', () => {
@@ -61,30 +59,6 @@ describe('native canvas frame transport', () => {
       expect(actual.imagePosition.y).toBeCloseTo(expected.imagePosition.y, 9);
     }
   );
-
-  it('keeps image and SVG coordinates aligned when changing the rendered viewport', () => {
-    const size = {
-      imageNaturalSize: { width: 1200, height: 2400 },
-      containerSize: { width: 420, height: 680 },
-    };
-    const current = { imageScale: 3.4, imagePosition: { x: -85, y: 120 } };
-    for (const rendered of [
-      { imageScale: 1, imagePosition: { x: 0, y: 0 } },
-      { imageScale: 2.1, imagePosition: { x: 75, y: -15 } },
-    ]) {
-      const matrix = viewportMatrix(current, rendered, { x: 210, y: 340 });
-      for (const point of [
-        { x: 0, y: 0 },
-        { x: 1034, y: 2158 },
-        { x: 600, y: 1200 },
-      ]) {
-        const before = imageToScreen(point, { ...size, ...rendered });
-        const after = imageToScreen(point, { ...size, ...current });
-        expect(before.x * matrix[0] + matrix[4]).toBeCloseTo(after.x, 9);
-        expect(before.y * matrix[3] + matrix[5]).toBeCloseTo(after.y, 9);
-      }
-    }
-  });
 
   it.each(['aux-horizontal-line', 'aux-vertical-line', 'tts', 'aux-length'])(
     'keeps the grab offset and shared %s constraint in the UI preview',

@@ -22,6 +22,7 @@ import {
   sameLayer,
   type AnnotationLayer,
 } from './annotationLayers';
+import { measurementGeometry } from './measurementGeometry';
 import { MeasurementDrawing } from './MeasurementDrawing';
 import { SvgLayer } from './SvgLayer';
 import { NativeControlPoints } from './NativeControlPoints';
@@ -53,29 +54,39 @@ const GeometryLayer = memo(
     bounded = false,
     preview = null,
   }: LayerProps) {
-    const bounds = bounded
-      ? geometryBounds(layer, context, showKeypoints, preview)
-      : undefined;
     if (
-      bounds === null ||
-      (!layer.measurements.length &&
-        (!showKeypoints || !layer.keypoints.length) &&
-        !layer.calibration.length &&
-        !preview)
+      !layer.measurements.length &&
+      (!showKeypoints || !layer.keypoints.length) &&
+      !layer.calibration.length &&
+      !preview
     )
       return null;
+    const drawings = layer.measurements.map(measurement => ({
+      measurement,
+      primitives: measurementGeometry(measurement, context, {
+        calculationContext,
+        renderPelvicSharedGeometry: measurement.id === pelvicOwnerId,
+      }),
+    }));
+    const previewGeometry = preview
+      ? measurementGeometry(preview, context)
+      : null;
+    const bounds = bounded
+      ? geometryBounds(layer, context, showKeypoints, preview, [
+          ...drawings.map(drawing => drawing.primitives),
+          ...(previewGeometry ? [previewGeometry] : []),
+        ])
+      : undefined;
+    if (bounds === null) return null;
     const project = (point: Point) => imageToScreen(point, context);
     return (
       <SvgLayer context={context} viewport={viewport} bounds={bounds}>
-        {layer.measurements.map(measurement => (
+        {drawings.map(({ measurement, primitives }) => (
           <MeasurementDrawing
             key={measurement.id}
             measurement={measurement}
             context={context}
-            drawingContext={{
-              calculationContext,
-              renderPelvicSharedGeometry: measurement.id === pelvicOwnerId,
-            }}
+            geometry={primitives}
             pointLabels={pointLabels.get(measurement.id)}
             selected={
               !!selection &&
@@ -134,8 +145,9 @@ const GeometryLayer = memo(
               </G>
             );
           })()}
-        {preview && (
+        {preview && previewGeometry && (
           <MeasurementDrawing
+            geometry={previewGeometry}
             measurement={preview}
             context={context}
             selected

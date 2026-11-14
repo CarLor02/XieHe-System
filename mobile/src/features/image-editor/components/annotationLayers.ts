@@ -2,12 +2,13 @@ import {
   imageToScreen,
   drawingBoundsPoints,
   type TransformContext,
+  type DrawingPrimitive,
 } from '@xiehe/imaging-core/canvas';
 import type { MeasurementData, Point } from '@xiehe/imaging-core/contracts';
 import type { AnnotationEditorSnapshot } from '@xiehe/imaging-core/editor';
 import type { KeypointAnnotation } from '@xiehe/imaging-core/keypoints';
 import type { EditorSelection } from '@/features/image-editor/application/dragAnnotation';
-import { measurementGeometry } from './measurementGeometry';
+import { cacheMargin } from './interaction/viewportCache';
 
 export interface AnnotationLayer {
   measurements: MeasurementData[];
@@ -100,7 +101,8 @@ export function geometryBounds(
   layer: AnnotationLayer,
   context: TransformContext,
   showKeypoints: boolean,
-  preview: MeasurementData | null
+  preview: MeasurementData | null,
+  drawings: readonly DrawingPrimitive[][]
 ): DrawingBounds | null {
   const project = (point: Point) => imageToScreen(point, context);
   const points: Point[] = layer.calibration.map(project);
@@ -111,14 +113,9 @@ export function geometryBounds(
     ...(preview ? [preview] : []),
   ]) {
     points.push(...measurement.points.map(project));
-    points.push(
-      ...drawingBoundsPoints(
-        measurementGeometry(measurement, context, {
-          renderPelvicSharedGeometry: true,
-        })
-      )
-    );
   }
+  for (const primitives of drawings)
+    points.push(...drawingBoundsPoints(primitives));
   if (!points.length || !context.containerSize) return null;
   let minX = Infinity,
     minY = Infinity,
@@ -133,14 +130,15 @@ export function geometryBounds(
   }
   // 按小网格扩展边界，避免每移动一个像素都改变原生视图布局。
   const tile = 64;
-  const x = Math.max(0, Math.floor((minX - 14) / tile) * tile),
-    y = Math.max(0, Math.floor((minY - 24) / tile) * tile);
+  const margin = cacheMargin(context.containerSize);
+  const x = Math.max(-margin, Math.floor((minX - 14) / tile) * tile),
+    y = Math.max(-margin, Math.floor((minY - 24) / tile) * tile);
   const right = Math.min(
-    context.containerSize.width,
+    context.containerSize.width + margin,
     Math.ceil((maxX + 32) / tile) * tile
   );
   const bottom = Math.min(
-    context.containerSize.height,
+    context.containerSize.height + margin,
     Math.ceil((maxY + 14) / tile) * tile
   );
   return right > x && bottom > y
