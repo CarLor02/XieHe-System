@@ -302,11 +302,7 @@ describe('mobile image editing workflow', () => {
       containerSize: { width: 400, height: 800 },
     };
     const start = imageToScreen(points[0], context);
-    const plan = interaction.begin(
-      1,
-      { ...start, translationX: 0, translationY: 0 },
-      context
-    );
+    const plan = interaction.begin(1, start, context);
     expect(plan.kind).toBe('annotation');
     const screenState = session.getScreenState();
     const screenListener = vi.fn(),
@@ -400,6 +396,87 @@ describe('mobile image editing workflow', () => {
     interaction.move(2, { ...sample, x: 999 });
     interaction.end(2, { ...sample, x: 999 });
     expect(session.snapshot).toEqual(before);
+  });
+
+  it('pans from empty space along the extension of a TS guide after zoom and pan', async () => {
+    const ts: MeasurementData = {
+      id: 'ts',
+      type: 'ts',
+      value: '',
+      points: [
+        { x: 450, y: 500 },
+        { x: 550, y: 500 },
+        { x: 450, y: 560 },
+        { x: 550, y: 560 },
+        { x: 630, y: 1400 },
+        { x: 730, y: 1400 },
+      ],
+    };
+    const { session } = await setup(image(document([ts])));
+    const interaction = new CanvasInteraction(session);
+    const context = {
+      imageScale: 2,
+      imagePosition: { x: 35, y: 90 },
+      imageNaturalSize: { width: 1000, height: 2000 },
+      containerSize: { width: 400, height: 800 },
+    };
+    const beginAt = (id: number, point: Point) => {
+      const screen = imageToScreen(point, context);
+      return interaction.begin(id, screen, context);
+    };
+    const before = session.snapshot;
+    expect(beginAt(1, { x: 500, y: 1000 }).kind).toBe('viewport');
+    expect(session.getState().selection).toBeNull();
+    expect(session.snapshot).toBe(before);
+    // 同一条竖线靠近 C7 的可见部分仍能命中。
+    expect(beginAt(2, { x: 500, y: 640 }).kind).toBe('annotation');
+    expect(session.getState().selection).toEqual({
+      kind: 'whole',
+      measurementId: 'ts',
+    });
+  });
+
+  it('pans over the body of a bound CSS while keeping its endpoints editable and taps selectable', async () => {
+    const css: MeasurementData = {
+      id: 'css',
+      type: 'css',
+      value: '1°',
+      keypointSynced: true,
+      points: [
+        { x: 250, y: 1200 },
+        { x: 650, y: 1200 },
+      ],
+    };
+    const { session } = await setup(image(document([css])));
+    const interaction = new CanvasInteraction(session);
+    const context = {
+      imageScale: 1.5,
+      imagePosition: { x: 40, y: -70 },
+      imageNaturalSize: { width: 1000, height: 2000 },
+      containerSize: { width: 400, height: 800 },
+    };
+    const sample = (point: Point) => ({
+      ...imageToScreen(point, context),
+      translationX: 0,
+      translationY: 0,
+    });
+    const middle = sample({ x: 450, y: 1200 });
+    expect(interaction.begin(1, middle, context).kind).toBe('viewport');
+    expect(session.getState().selection).toBeNull();
+    interaction.end(1, middle);
+    interaction.tap(middle, context);
+    expect(session.getState().selection).toEqual({
+      kind: 'whole',
+      measurementId: 'css',
+    });
+    expect(interaction.begin(2, sample(css.points[0]), context).kind).toBe(
+      'annotation'
+    );
+    expect(session.getState().selection).toEqual({
+      kind: 'point',
+      measurementId: 'css',
+      pointIndex: 0,
+    });
   });
 
   it('completes a short viewport pan even if release precedes the UI hit-test response', async () => {

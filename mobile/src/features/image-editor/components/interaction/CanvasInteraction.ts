@@ -8,6 +8,7 @@ import {
 } from '@xiehe/imaging-core/canvas';
 import type { Point } from '@xiehe/imaging-core/contracts';
 import type { ImageEditorSession } from '@/features/image-editor/application/ImageEditorSession';
+import { canMoveWholeAnnotation } from '@/features/image-editor/application/dragAnnotation';
 import { findSelection, selectionAnchor } from './selection';
 import type { DragPlan, PanSample, Viewport } from './canvasGestureModel';
 
@@ -23,16 +24,12 @@ export class CanvasInteraction {
 
   constructor(readonly session: ImageEditorSession) {}
 
-  begin(id: number, event: PanSample, context: TransformContext): DragPlan {
+  begin(id: number, start: Point, context: TransformContext): DragPlan {
     this.cancel();
     if (this.disposed)
       return { kind: 'viewport', origin: context.imagePosition };
     this.gestureId = id;
     this.context = context;
-    const start = {
-      x: event.x - event.translationX,
-      y: event.y - event.translationY,
-    };
     const point = screenToImage(start.x, start.y, context);
     const state = this.session.getState();
     if (this.session.editable && isDynamicShapeTool(state.tool)) {
@@ -43,6 +40,19 @@ export class CanvasInteraction {
       this.session.editable && !state.drawing
         ? findSelection(this.session, start, context)
         : null;
+    if (selection?.kind === 'whole') {
+      const snapshot = this.session.snapshot;
+      const item = snapshot?.measurements.find(
+        m => m.id === selection.measurementId
+      );
+      // 绑定项允许轻点选中，但拖动不可整体移动的线身时，应把手势交给画布。
+      if (
+        !item ||
+        !snapshot ||
+        !canMoveWholeAnnotation(item, snapshot.pointBindings)
+      )
+        return { kind: 'viewport', origin: context.imagePosition };
+    }
     if (!selection) return { kind: 'viewport', origin: context.imagePosition };
     const anchor = selectionAnchor(this.session, selection, point);
     const offset = { x: point.x - anchor.x, y: point.y - anchor.y };

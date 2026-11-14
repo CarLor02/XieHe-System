@@ -1,4 +1,5 @@
 import {
+  type AnnotationBindings,
   applyPointBindings,
   isMeasurementBound,
 } from '@xiehe/imaging-core/bindings';
@@ -7,7 +8,11 @@ import {
   constrainDraggedMeasurementPoint,
   planWholeMeasurementDrag,
 } from '@xiehe/imaging-core/canvas';
-import { AnnotationSource, type Point } from '@xiehe/imaging-core/contracts';
+import {
+  AnnotationSource,
+  type MeasurementData,
+  type Point,
+} from '@xiehe/imaging-core/contracts';
 import type { AnnotationEditorSnapshot } from '@xiehe/imaging-core/editor';
 import { upsertKeypoint } from '@xiehe/imaging-core/keypoints';
 import {
@@ -44,6 +49,17 @@ export type EditorSelection =
   | { kind: 'line'; measurementId: string; lineIndex: number }
   | { kind: 'keypoint'; keypointId: string }
   | { kind: 'calibration'; pointIndex: number };
+
+export function canMoveWholeAnnotation(
+  measurement: MeasurementData,
+  bindings: AnnotationBindings
+): boolean {
+  return canDragWholeMeasurement(
+    measurement,
+    measurement.keypointSynced === true ||
+      isMeasurementBound(measurement.id, bindings)
+  );
+}
 
 export function dragAnnotation(
   snapshot: AnnotationEditorSnapshot,
@@ -87,13 +103,7 @@ export function dragAnnotation(
   let points = measurement.points;
   let changedIndices: number[] = [];
   if (selection.kind === 'whole') {
-    if (
-      !canDragWholeMeasurement(
-        measurement,
-        measurement.keypointSynced === true ||
-          isMeasurementBound(measurement.id, snapshot.pointBindings)
-      )
-    )
+    if (!canMoveWholeAnnotation(measurement, snapshot.pointBindings))
       return snapshot;
     points = planWholeMeasurementDrag(measurement, point);
     changedIndices = points.map((_, index) => index);

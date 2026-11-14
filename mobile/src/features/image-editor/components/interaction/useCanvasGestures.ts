@@ -63,6 +63,9 @@ export function useCanvasGestures(
         preview.set(null);
     }, completedGesture);
   }, [completedGesture, gestureState, preview]);
+  const touchDown = useSharedValue<{ point: Point; viewport: Viewport } | null>(
+    null
+  );
   const suppressTap = useSharedValue(false);
   const pinchStart = useSharedValue({
     viewport: initialViewport,
@@ -101,8 +104,8 @@ export function useCanvasGestures(
     [preview, viewport]
   );
   const begin = useCallback(
-    (id: number, sample: PanSample, current: Viewport) => {
-      const plan = interaction.begin(id, sample, context(current));
+    (id: number, point: Point, current: Viewport) => {
+      const plan = interaction.begin(id, point, context(current));
       scheduleOnUI(
         (gestureId: number, next: DragPlan) => {
           const state = gestureState.get();
@@ -339,6 +342,13 @@ export function useCanvasGestures(
     const pan = Gesture.Pan()
       .maxPointers(1)
       .minDistance(4)
+      .onBegin(event => {
+        // Android 在 pan 激活时重置 translation，用激活位置回推会把途经的标注当成落点。
+        touchDown.set({
+          point: { x: event.x, y: event.y },
+          viewport: viewport.get(),
+        });
+      })
       .onTouchesDown(event => {
         if (event.numberOfTouches > 1) interrupt();
       })
@@ -351,7 +361,13 @@ export function useCanvasGestures(
           plan: null,
           mailbox: enqueueMove(emptyMailbox(), event),
         });
-        scheduleOnRN(begin, id, event, viewport.get());
+        const down = touchDown.get();
+        scheduleOnRN(
+          begin,
+          id,
+          down?.point ?? { x: event.x, y: event.y },
+          down?.viewport ?? viewport.get()
+        );
       })
       .onUpdate(event => {
         const state = gestureState.get();
@@ -380,6 +396,7 @@ export function useCanvasGestures(
         if (state.plan?.kind === 'viewport') settleProjection();
       })
       .onFinalize((_event, success) => {
+        touchDown.set(null);
         const phase = gestureState.get().phase;
         if (!success && (phase === 'pan' || phase === 'pending')) interrupt();
       });
@@ -465,6 +482,7 @@ export function useCanvasGestures(
     pinchStart,
     preview,
     suppressTap,
+    touchDown,
     tap,
     viewport,
   ]);

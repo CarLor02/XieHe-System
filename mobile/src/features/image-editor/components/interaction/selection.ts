@@ -1,20 +1,36 @@
 import {
   hitTestCanvasMeasurement,
   imageToScreen,
-  screenToImage,
+  type DrawingPrimitive,
   type TransformContext,
 } from '@xiehe/imaging-core/canvas';
 import {
-  getAnnotationConfig,
   getInteractivePointsCount,
   isEditableAuxiliaryAnnotationType,
 } from '@xiehe/imaging-catalog/annotations';
 import type { Point } from '@xiehe/imaging-core/contracts';
-import { getBoundingBoxCenter } from '@xiehe/imaging-core/geometry';
+import {
+  getBoundingBoxCenter,
+  pointToLineDistance,
+} from '@xiehe/imaging-core/geometry';
 import { getBilateralPelvicGeometryForMeasurement } from '@xiehe/imaging-core/measurements/lateral';
 import { resolveTtsMeasurement } from '@xiehe/imaging-core/measurements/ap';
 import type { ImageEditorSession } from '@/features/image-editor/application/ImageEditorSession';
+import { measurementGeometry } from '@/features/image-editor/components/measurementGeometry';
 import type { EditorSelection } from '@/features/image-editor/application/dragAnnotation';
+
+function touchesLine(
+  primitives: DrawingPrimitive[],
+  point: Point,
+  radius: number
+): boolean {
+  return primitives.some(p => {
+    if (p.kind === 'vertebra') return touchesLine(p.children, point, radius);
+    return (
+      p.kind === 'line' && pointToLineDistance(point, p.start, p.end) <= radius
+    );
+  });
+}
 
 export function findSelection(
   session: ImageEditorSession,
@@ -66,19 +82,9 @@ export function findSelection(
     policy: {
       getInteractivePointsCount,
       isEditableAuxiliary: isEditableAuxiliaryAnnotationType,
-      hitTestLabel: measurement => {
-        const point = screenToImage(screenPoint.x, screenPoint.y, context);
-        const origin = project({ x: 0, y: 0 }),
-          unit = project({ x: 1, y: 0 });
-        const tolerance = 12 / Math.max(0.001, unit.x - origin.x);
-        return (
-          getAnnotationConfig(measurement.type)?.isInSelectionRange(
-            point,
-            measurement.points,
-            tolerance
-          ) ?? false
-        );
-      },
+      // 点、辅助图形和专用控制柄由 core 命中；其余线身直接使用画布绘制的有限线段。
+      hitTestBody: measurement =>
+        touchesLine(measurementGeometry(measurement, context), screenPoint, 12),
     },
   });
   if (hit.kind !== 'none')

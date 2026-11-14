@@ -35,6 +35,8 @@ export type MeasurementHitResult =
 export interface MeasurementHitTestPolicy {
   getInteractivePointsCount?: (type: string) => number | undefined;
   isEditableAuxiliary?: (type: string) => boolean;
+  /** 平台展示的有限线段可作为整项拖动目标。标签命中仍由独立回调决定。 */
+  hitTestBody?: (measurement: MeasurementData) => boolean;
   hitTestLabel?: (measurement: MeasurementData) => boolean;
 }
 
@@ -331,6 +333,9 @@ export function hitTestCanvasMeasurement({
         imageToScreen
       )
     ) {
+      return { kind: 'whole', measurementId: measurement.id };
+    }
+    if (policy.hitTestBody?.(measurement)) {
       return { kind: 'whole', measurementId: measurement.id };
     }
     if (editableAuxiliary && policy.hitTestLabel?.(measurement)) {

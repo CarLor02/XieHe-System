@@ -119,8 +119,28 @@ describe('pinch viewport lifecycle', () => {
     runtime.handlers = {};
     runtime.rnQueue = [];
     const gateway: ImageEditorGateway = {
-      getImage: vi.fn(),
-      getPreview: vi.fn(),
+      getImage: vi.fn().mockResolvedValue({
+        id: 1,
+        description: '正位X光片',
+        annotation_version: 1,
+        annotation: {
+          schemaVersion: 1,
+          imageWidth: 1000,
+          imageHeight: 2000,
+          measurements: [
+            {
+              id: 'css',
+              type: 'css',
+              value: '0°',
+              points: [
+                { x: 250, y: 1000 },
+                { x: 650, y: 1000 },
+              ],
+            },
+          ],
+        },
+      }),
+      getPreview: vi.fn().mockResolvedValue({ uri: 'test://css' }),
       save: vi.fn(),
       measure: vi.fn(),
       generate: vi.fn(),
@@ -134,6 +154,28 @@ describe('pinch viewport lifecycle', () => {
   afterEach(() => {
     flushSync(() => root.unmount());
     container.remove();
+  });
+
+  it('keeps panning when Android activates over a CSS endpoint after touching blank canvas', async () => {
+    await session.load();
+    session.imageLoaded(imageSize);
+    const endpoint = {
+      x: 100,
+      y: 400,
+      translationX: 0,
+      translationY: 0,
+      numberOfPointers: 1,
+    };
+    runtime.handlers.pan.onBegin({ ...endpoint, y: 315 });
+    // Android 的激活事件已清零 translation；这时手指可能已越过控制点。
+    runtime.handlers.pan.onStart(endpoint);
+    flushRN();
+    const end = { ...endpoint, translationX: 20, x: 120 };
+    runtime.handlers.pan.onEnd(end, true);
+    flushRN();
+    expect(canvas.viewport.get().imagePosition).toEqual({ x: 20, y: 0 });
+    expect(session.getState().selection).toBeNull();
+    expect(session.getState().history?.past).toHaveLength(0);
   });
 
   it('reuses the projection for small two-finger translations and scale changes', () => {
